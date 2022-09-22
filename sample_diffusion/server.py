@@ -9,7 +9,6 @@ class SocketIOServer:
         self.website_url = website_url
 
         self.app = Flask(__name__)
-        self.app.config['SECRET_KEY'] = 'ba254da4-9920-4ce9-aa70-c2cc4cb62658'
 
         url = f'ws://{host}:{str(port)}'
 
