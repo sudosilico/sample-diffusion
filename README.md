@@ -11,4 +11,4 @@ Includes:
 
 ## Generator Guide
 
-There is a [quick guide on using `generate.py`](https://github.com/sudosilico/sample-diffusion/blob/main/generator.md) to generate audio samples from your models.
+There is a [quick guide on using `generate.py`](https://github.com/sudosilico/sample-diffusion/blob/main/generator-guide.md) to generate audio samples from your models.
