@@ -1,0 +1,23 @@
+name: sd_backend
+channels:
+  - pytorch
+  - defaults
+dependencies: 
+  - git
+  - flask
+  - python=3.8.5
+  - pip=20.3
+  - cudatoolkit=11.3
+  - pytorch=1.11.0
+  - torchvision=0.12.0
+  - numpy=1.19.2
+  - torchaudio
+  - setuptools
+  - pip:
+    - -e .
+    - pytorch-lightning==1.4.2
+    - torchmetrics==0.6.0
+    - PySoundFile
+    - flask-socketio
+    - git+https://github.com/harmonai-org/sample-generator.git#egg=audio_diffusion
+    - git+https://github.com/crowsonkb/v-diffusion-pytorch.git#egg=v-diffusion-pytorch
