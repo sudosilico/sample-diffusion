@@ -20,13 +20,15 @@ cd sample-diffusion
 
 ## Set up conda environment
 
-`cd` into the backend project and create the `conda` environment:
+Create the `conda` environment:
 
 ```sh
 conda env create -f environment.yml
 ```
 
 This may take a few minutes as it will install all the necessary Python dependencies so that they will be available to the CLI script.
+
+While you only need to _create_ the `conda` environment once, you'll need to _activate_ it after creating it and once for each new terminal session so that python can access the dependencies.
 
 ```sh
 conda activate sd_backend
