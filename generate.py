@@ -35,29 +35,21 @@ def save_audio(args, audio_out):
     print(f'Your samples are waiting for you here: {output_path}')
     print(f'Seed: {args.seed}, Steps: {args.n_steps}, Noise: {args.noise_level}')
 
-def load_number_file(path):
-    with open(path, 'r') as f:
-        return int(f.read())
-
-def save_number_file(path, num):
-    with open(path, 'w') as f:
-        f.write(str(num))
-
 def write_to_json(obj, path):
     with open(path, 'w') as f:
-        json.dump(obj, f)
+        json.dump(vars(obj), f)
 
 def get_output_path(args):
     seed = args.seed
     steps = args.n_steps
     noise = args.noise_level
 
-    val = load_number_file("value.txt")
-    
     if args.input:
-        parent_folder = os.path.join(args.out_path, f'variations{val}')
+        parent_folder = os.path.join(args.out_path, f'variations{seed}')
     else:
-        parent_folder = os.path.join(args.out_path, f'generations{val}')
+        parent_folder = os.path.join(args.out_path, f'generations{seed}')
+
+    os.makedirs(parent_folder)
 
     write_to_json(args, os.path.join(parent_folder, 'meta.json'))
 
