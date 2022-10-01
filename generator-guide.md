@@ -1,4 +1,4 @@
-# Generator Guide
+# Guide to the `generate.py` CLI
 
 ## Requirements
 
@@ -46,14 +46,37 @@ Alternatively, you can pass a custom model path as an argument:
 python generate.py --ckpt models/some-other-model.ckpt
 ```
 
+Your audio samples will then be in one of the following folders:
+
+`audio_out/generations/{seed}_{n_steps}` for generations (noise2audio)
+`audio_out/variations/{seed}_{n_steps}_{noise_level}` for variations (audio2audio)
+
+along with a `meta.json` file containing the passed arguments, seed, and batch number.
+
+## Multiple Batches
+
+If you get an out-of-VRAM error, you may want to process in multiple batches. 
+
+Both of these commands will generate 25 audio samples in total, but the second one is split into multiple batches, allowing for a lower maximum VRAM usage.
+
+```sh
+# Generate 25 files, in 1 batch of 25 samples
+python generate.py --n_samples 25
+
+# Generate 25 files, in 5 batches of 5 samples
+python generate.py --n_samples 5 --n_batches 5
+```
+
+When generating multiple batches, the first batch will use the passed seed (or a random seed if none was passed), and each subsequent batch will increment the seed by one.
+
 ## `generate.py` Arguments
 
 | argument                   | type  | default             | desc                                               |
 |----------------------------|-------|---------------------|----------------------------------------------------|
-| --ckpt                     | str   | `models/model.ckpt` | path to the model to be used                       |
+| --ckpt                     | str   | "models/model.ckpt" | path to the model to be used                       |
 | --spc                      | int   | 65536               | the samples per chunk of the model                 |
 | --sr                       | int   | 48000               | the samplerate of the model                        |
-| --out_path                 | str   | `audio_out`         | path to the folder for the samples to be saved in  |
+| --out_path                 | str   | "audio_out"         | path to the folder for the samples to be saved in  |
 | --sample_length_multiplier | int   | 1                   | sample length multiplier for audio2audio           |
 | --input_sr                 | int   | 44100               | samplerate of the input audio specified in --input |
 | --noise_level              | float | 0.7                 | noise level for audio2audio                        |
@@ -61,4 +84,4 @@ python generate.py --ckpt models/some-other-model.ckpt
 | --n_samples                | int   | 1                   | how many samples to generate per batch             |
 | --n_batches                | int   | 1                   | how many batches of samples to generate            |
 | --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
-| --input                    | str   | None                | path to the audio to be used for audio2audio       |
+| --input                    | str   | ""                | path to the audio to be used for audio2audio       |
