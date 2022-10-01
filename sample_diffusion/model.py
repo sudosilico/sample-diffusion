@@ -3,12 +3,23 @@ from torch import nn
 from audio_diffusion.models import DiffusionAttnUnet1D
 
 
+class ModelInfo:
+    def __init__(self, model, device, chunk_size):
+        self.model = model
+        self.device = device
+        self.chunk_size = chunk_size
+        pass
+
+    pass
+
+
 def load_model(model_args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     model_ph = instantiate_model(model_args.spc, model_args.sr)
     model = load_state_from_checkpoint(device, model_ph, model_args.ckpt)
 
-    return model, device
+    return ModelInfo(model, device, model_args.spc)
 
 
 def instantiate_model(chunk_size, model_sample_rate):

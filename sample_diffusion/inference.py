@@ -1,4 +1,5 @@
-import math, gc
+import math
+import gc
 import torchaudio
 import torch
 from diffusion import sampling
@@ -16,61 +17,57 @@ def set_seed(new_seed):
     return seed
 
 
-def generate_audio(generation_args, seed, args, device, model, callback=None):
-    noise_level = generation_args.noise_level
-    length = generation_args.sample_length_multiplier
-    input_path = generation_args.input
-    input_sr = generation_args.input_sr
-
+def generate_audio(seed, samples, steps, model_info, callback=None):
     seed = set_seed(seed)
 
-    spc = args.spc
-    n_samples = args.n_samples
-    n_steps = args.n_steps
-
-    if generation_args.input:
-        audio_in = load_to_device(device, input_path, input_sr)
-        audio_out = audio2audio(
-            device,
-            model.diffusion_ema,
-            spc,
-            n_samples,
-            n_steps,
-            audio_in,
-            noise_level,
-            length,
-            callback,
-        )
-    else:
-        audio_out = rand2audio(
-            device, model.diffusion_ema, spc, n_samples, n_steps, callback
-        )
+    audio_out = rand2audio(model_info, samples, steps, callback)
 
     return audio_out, seed
 
 
-def process_audio(args, device, model, callback=None):
-    audio_out, seed = generate_audio(args, args.seed, args, device, model, callback)
+def process_audio(
+    input_path,
+    sample_rate,
+    sample_length_multiplier,
+    noise_level,
+    seed,
+    samples,
+    steps,
+    model_info,
+    callback=None,
+):
+    seed = set_seed(seed)
+
+    audio_in = load_to_device(model_info.device, input_path, sample_rate)
+
+    audio_out = audio2audio(
+        model_info,
+        samples,
+        steps,
+        audio_in,
+        noise_level,
+        sample_length_multiplier,
+        callback,
+    )
+
     return audio_out, seed
 
 
-def rand2audio(device, model, chunk_size, batch_size, n_steps, callback=None):
+def rand2audio(model_info, batch_size, n_steps, callback=None):
     torch.cuda.empty_cache()
     gc.collect()
 
-    noise = torch.randn([batch_size, 2, chunk_size]).to(device)
-    t = torch.linspace(1, 0, n_steps + 1, device=device)[:-1]
+    noise = torch.randn([batch_size, 2, model_info.chunk_size]).to(model_info.device)
+    t = torch.linspace(1, 0, n_steps + 1, device=model_info.device)[:-1]
     step_list = get_crash_schedule(t)
 
-    return sampling.iplms_sample(model, noise, step_list, {}, callback=callback).clamp(
-        -1, 1
-    )
+    return sampling.iplms_sample(
+        model_info.model.diffusion_ema, noise, step_list, {}, callback=callback
+    ).clamp(-1, 1)
 
 
 def audio2audio(
-    device,
-    model,
-    chunk_size,
+    model_info,
     batch_size,
     n_steps,
     audio_input,
@@ -78,7 +75,7 @@ def audio2audio(
     sample_length_multiplier,
     callback=None,
 ):
-    effective_length = chunk_size * sample_length_multiplier
+    effective_length = model_info.chunk_size * sample_length_multiplier
 
     torch.cuda.empty_cache()
     gc.collect()
@@ -86,16 +83,20 @@ def audio2audio(
     augs = torch.nn.Sequential(PadCrop(effective_length, randomize=True), Stereo())
     audio = augs(audio_input).unsqueeze(0).repeat([batch_size, 1, 1])
 
-    t = torch.linspace(0, 1, n_steps + 1, device=device)
+    t = torch.linspace(0, 1, n_steps + 1, device=model_info.device)
     step_list = get_crash_schedule(t)
     step_list = step_list[step_list < noise_level]
 
     alpha, sigma = t_to_alpha_sigma(step_list[-1])
-    noise = torch.randn([batch_size, 2, effective_length], device="cuda")
+    noise = torch.randn([batch_size, 2, effective_length], device=model_info.device)
     noised_audio = audio * alpha + noise * sigma
 
     return sampling.iplms_sample(
-        model, noised_audio, step_list.flip(0)[:-1], {}, callback=callback
+        model_info.model.diffusion_ema,
+        noised_audio,
+        step_list.flip(0)[:-1],
+        {},
+        callback=callback,
     )
 
 
@@ -115,6 +116,9 @@ def t_to_alpha_sigma(t):
 
 def load_to_device(device, path, sr):
     audio, file_sr = torchaudio.load(path)
-    if sr != file_sr:
+    if (sr is not None) and (sr != file_sr):
+        print(
+            f"Resampling from {file_sr} (file sample rate) to {sr} (model sample rate)."
+        )
         audio = torchaudio.transforms.Resample(file_sr, sr)(audio)
     return audio.to(device)
