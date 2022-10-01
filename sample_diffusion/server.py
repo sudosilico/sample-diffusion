@@ -1,8 +1,9 @@
 from flask import Flask
 from flask_socketio import SocketIO
 
+
 class SocketIOServer:
-    def __init__(self, args, host='localhost', port=5001, website_url=None):
+    def __init__(self, args, host="localhost", port=5001, website_url=None):
         self.args = args
         self.host = host
         self.port = port
@@ -10,14 +11,16 @@ class SocketIOServer:
 
         self.app = Flask(__name__)
 
-        url = f'ws://{host}:{str(port)}'
+        url = f"ws://{host}:{str(port)}"
 
-        socketio = SocketIO(self.app, cors_allowed_origins=[website_url, url], async_mode="threading")
+        socketio = SocketIO(
+            self.app, cors_allowed_origins=[website_url, url], async_mode="threading"
+        )
 
         @socketio.on("connect")
         def connect(auth):
             global clients
-            
+
             clients += 1
             print("Client connected")
             print("There are " + str(len(clients)) + " clients connected")
@@ -25,7 +28,7 @@ class SocketIOServer:
         @socketio.on("disconnect")
         def disconnect():
             global clients
-            
+
             clients -= 1
             print("Client disconnected")
             print("There are " + str(len(clients)) + " clients connected")
@@ -37,12 +40,12 @@ class SocketIOServer:
 
             generation_args = Object()
 
-            generation_args.sample_length_multiplier = data['sample_length_multiplier']
-            generation_args.input_sr = data['input_sr']
-            generation_args.noise_level = data['noise_level']
-            generation_args.n_steps = data['n_steps']
-            generation_args.n_samples = data['n_samples']
-            generation_args.seed = data['seed']
+            generation_args.sample_length_multiplier = data["sample_length_multiplier"]
+            generation_args.input_sr = data["input_sr"]
+            generation_args.noise_level = data["noise_level"]
+            generation_args.n_steps = data["n_steps"]
+            generation_args.n_samples = data["n_samples"]
+            generation_args.seed = data["seed"]
 
             if self.ongenerate is not None:
                 self.ongenerate(generation_args, socketio)
@@ -62,8 +65,17 @@ class SocketIOServer:
             t = cbArgs.t
             pred = cbArgs.pred
 
-            self.socketio.emit('generator_progress', { 'x': x, 'i': i, 't': t, 'pred': pred, })
+            self.socketio.emit(
+                "generator_progress",
+                {
+                    "x": x,
+                    "i": i,
+                    "t": t,
+                    "pred": pred,
+                },
+            )
             return
+
         return callback
 
     def start(self):

@@ -11,7 +11,7 @@
 
 Clone the repo and `cd` into it:
 
-```
+```sh
 git clone https://github.com/sudosilico/sample-diffusion
 cd sample-diffusion
 ```
@@ -58,6 +58,7 @@ python generate.py --ckpt models/some-other-model.ckpt
 | --input_sr                 | int   | 44100               | samplerate of the input audio specified in --input |
 | --noise_level              | float | 0.7                 | noise level for audio2audio                        |
 | --n_steps                  | int   | 25                  | number of sampling steps                           |
-| --n_samples                | int   | 1                   | how many samples to produce / batch size           |
+| --n_samples                | int   | 1                   | how many samples to generate per batch             |
+| --n_batches                | int   | 1                   | how many batches of samples to generate            |
 | --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
-| --input                    | str   | None                  | path to the audio to be used for audio2audio       |
+| --input                    | str   | None                | path to the audio to be used for audio2audio       |
