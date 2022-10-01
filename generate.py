@@ -53,7 +53,7 @@ def save_audio(audio_out, args, seed, batch):
     write_metadata(args, seed, batch, os.path.join(output_path, "meta.json"))
 
     for ix, sample in enumerate(audio_out):
-        output_file = os.path.join(output_path, f"sample #{ix + 1}.wav")
+        output_file = os.path.join(output_path, f"sample_{ix + 1}.wav")
         open(output_file, "a").close()
         output = sample.cpu()
         torchaudio.save(output_file, output, args.sr)
