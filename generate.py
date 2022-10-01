@@ -70,28 +70,29 @@ def save_audio(audio_out, args, seed, batch):
 
 
 def write_metadata(args, seed, batch, path):
-    metadata = object()
-
-    metadata.args = args
-    metadata.seed = seed
-    metadata.batch = batch
+    metadata = {
+        "args": vars(args),
+        "seed": seed,
+        "batch": batch
+    }
 
     write_to_json(metadata, path)
 
 
 def write_to_json(obj, path):
     with open(path, "w") as f:
-        json.dump(vars(obj), f)
+        obj_json = json.dumps(obj, indent=2)
+        f.write(obj_json)
 
 
 def get_output_folder(args, seed, batch):
     if args.input:
         parent_folder = os.path.join(
-            args.out_path, f"variations", f"{seed}_{args.steps}_{args.noise_level}"
+            args.out_path, f"variations", f"{seed}_{args.n_steps}_{args.noise_level}"
         )
     else:
         parent_folder = os.path.join(
-            args.out_path, f"generations", f"{seed}_{args.steps}"
+            args.out_path, f"generations", f"{seed}_{args.n_steps}"
         )
 
     return parent_folder
