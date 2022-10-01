@@ -64,7 +64,7 @@ Your audio samples will then be in one of the following folders:
 
 `audio_out/variations/{seed}_{n_steps}_{noise_level}` for variations (audio2audio)
 
-along with a `meta.json` file containing the passed arguments, seed, and batch number.
+along with a `meta.json` file containing the arguments, seed, and batch number.
 
 ### Multiple Batches
 
