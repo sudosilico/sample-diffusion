@@ -2,11 +2,10 @@
 
 🚧 This project is early in development. Expect breaking changes! 🚧
 
-This repository contains the python project providing the machine learning service used by the [Sample Diffusion web application](https://github.com/sudosilico/sample-diffusion-app) to generate audio samples using Harmonai [Dance Diffusion](https://github.com/Harmonai-org/sample-generator) models. It also includes a CLI script.
+This repository contains the python project that runs machine learning tasks for the [Sample Diffusion web application](https://github.com/sudosilico/sample-diffusion-app). It is used to generate audio samples using Harmonai [Dance Diffusion](https://github.com/Harmonai-org/sample-generator) models.
 
-## Scripts
 
-This project provides the following scripts:
+## Features
 
 - A CLI (`generate.py`) for generating audio samples from the command line using Dance Diffusion models.
 - (Planned) A socket.io server (`server.py`) that can be used as a Dance Diffusion service by applications written in any programming language that has a socket.io client.
@@ -61,7 +60,7 @@ python generate.py --ckpt models/some-other-model.ckpt
 
 Your audio samples will then be in one of the following folders:
 
-`audio_out/generations/{seed}_{n_steps}` for generations (noise2audio)
+`audio_out/generations/{seed}_{n_steps}` for generations (rand2audio)
 
 `audio_out/variations/{seed}_{n_steps}_{noise_level}` for variations (audio2audio)
 
@@ -83,7 +82,7 @@ python generate.py --n_samples 5 --n_batches 5
 
 When generating multiple batches, the first batch will use the passed seed (or a random seed if none was passed), and each subsequent batch will increment the seed by one.
 
-### `generate.py` Arguments
+### `generate.py` Command Line Arguments
 
 | argument                   | type  | default             | desc                                               |
 |----------------------------|-------|---------------------|----------------------------------------------------|
@@ -98,4 +97,4 @@ When generating multiple batches, the first batch will use the passed seed (or a
 | --n_samples                | int   | 1                   | how many samples to generate per batch             |
 | --n_batches                | int   | 1                   | how many batches of samples to generate            |
 | --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
-| --input                    | str   | ""                | path to the audio to be used for audio2audio       |
+| --input                    | str   | ""                | path to the audio to be used for audio2audio. if missing or empty, rand2audio will be used.  |
