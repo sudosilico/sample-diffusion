@@ -61,12 +61,12 @@ def save_audio(audio_out, args, seed, batch):
     if args.n_batches > 1:
         print(f"Finished batch {batch + 1} of {args.n_batches}.")
 
-    print(f"Your samples are waiting for you here: {output_path}")
+    print(f"\nYour samples are waiting for you here: {output_path}")
 
     if args.input:
-        print(f"Seed: {seed}, Steps: {args.n_steps}, Noise: {args.noise_level}")
+        print(f"  Seed: {seed}, Steps: {args.n_steps}, Noise: {args.noise_level}\n")
     else:
-        print(f"Seed: {seed}, Steps: {args.n_steps}")
+        print(f"  Seed: {seed}, Steps: {args.n_steps}\n")
 
 
 def write_metadata(args, seed, batch, path):
