@@ -6,10 +6,17 @@ import discord
 import asyncio
 import os
 from discord_bot.generator_thread import GeneratorThread
+from discord_bot.thread_dispatcher import ThreadDispatcher
 
 
 class DanceDiffusionDiscordBot:
     def __init__(self):
+        self.dispatcher = ThreadDispatcher(daemon=False)
+        self.dispatcher.start()
+
+        self.dispatcher.invoke(self._initialize)
+
+    def _initialize(self):
         bot = discord.Bot()
 
         @bot.event
@@ -34,7 +41,7 @@ class DanceDiffusionDiscordBot:
             request.seed = seed
             request.samples = samples
             request.steps = steps
-            request.oncompleted = oncompleted
+            request.oncompleted = lambda sample_paths : self.dispatcher.invoke(lambda : oncompleted(sample_paths))
 
             self.generator_thread.add_request(request)
 
