@@ -7,11 +7,11 @@ This repository contains the python project that runs machine learning tasks for
 
 ## Features
 
-- A CLI for generating audio samples from the command line using Dance Diffusion models (`generate.py`).
-- A script for reducing the file size of Dance Diffusion models by removing data that is only needed for training and not inference (`scripts/trim_model.py`).
-- (Planned) A socket.io server that can be used as a Dance Diffusion service by applications written in any programming language that has a socket.io client (`server.py`).
+- A CLI for generating audio samples from the command line using Dance Diffusion models. (`generate.py`)
+- A script for reducing the file size of Dance Diffusion models by removing data that is only needed for training and not inference. (`scripts/trim_model.py`)
+- (Planned) A socket.io server that can be used as a Dance Diffusion service by applications written in any programming language that has a socket.io client. (`server.py`)
 
-## Using the `generate.py` CLI
+## Installation
 
 ### Requirements
 
@@ -45,7 +45,9 @@ While you only need to _create_ the `conda` environment once, you'll need to _ac
 conda activate sd_backend
 ```
 
-### Running the Generator
+## Using the `generate.py` CLI
+
+### Generating samples
 
 Make a `models` folder and place your model in `models/model.ckpt`, then run the generator:
 
@@ -61,15 +63,14 @@ python generate.py --ckpt models/some-other-model.ckpt
 
 Your audio samples will then be in one of the following folders:
 
-`audio_out/generations/{seed}_{n_steps}` for generations (rand2audio)
-
-`audio_out/variations/{seed}_{n_steps}_{noise_level}` for variations (audio2audio)
+- `audio_out/generations/{seed}_{n_steps}` for generations (rand2audio)
+- `audio_out/variations/{seed}_{n_steps}_{noise_level}` for variations (audio2audio)
 
 along with a `meta.json` file containing the arguments, seed, and batch number.
 
-### Multiple Batches
+### Using multiple batches
 
-If you get an out-of-VRAM error, you may want to process in multiple batches. 
+If you get an out-of-VRAM error, you may want to process in multiple batches.
 
 Both of these commands will generate 25 audio samples in total, but the second one is split into multiple batches, allowing for a lower maximum VRAM usage.
 
@@ -99,3 +100,15 @@ When generating multiple batches, the first batch will use the passed seed (or a
 | --n_batches                | int   | 1                   | how many batches of samples to generate            |
 | --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
 | --input                    | str   | ""                | path to the audio to be used for audio2audio. if missing or empty, rand2audio will be used.  |
+
+## Using the model trimming script
+
+`scripts/trim_model.py` can be used to reduce the file size of Dance Diffusion models by removing data that is only needed for training and not inference. For our first models, this reduced the model size by about 75% (from 3.46 GB to 0.87 GB).
+
+To use it, simply pass the path to the model you want to trim as an argument:
+
+```sh
+python scripts/trim_model.py models/model.ckpt
+```
+
+This will create a new model file at `models/model_trim.ckpt`.
