@@ -16,9 +16,8 @@ from sample_diffusion.model import (
 
 
 class GeneratorThread:
-    def __init__(self, output_path="outputs_from_discord_bot", sample_rate=48000):
+    def __init__(self, output_path="outputs_from_discord_bot"):
         self.output_path = output_path
-        self.sample_rate = sample_rate
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
         self.running = False
@@ -29,7 +28,6 @@ class GeneratorThread:
         self.thread.start()
 
     def add_request(self, request):
-        print(f"Adding request to queue: {request}")
         self.request_queue.put(request)
 
     def run(self):
@@ -54,6 +52,9 @@ class GeneratorThread:
 
                 samples_output_path = os.path.join(self.output_path, f"{seed}_{steps}")
 
+                if not os.path.exists(samples_output_path):
+                    os.makedirs(samples_output_path)
+
                 sample_paths = []
 
                 # save audio samples to files
@@ -72,10 +73,10 @@ class GeneratorThread:
             else:
                 time.sleep(1)
 
-    def _load_model(self, ckpt, sample_rate, chunk_size):
+    def load_model(self, ckpt="models/model.ckpt", sample_rate=48000, chunk_size=65536):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         model_ph = instantiate_model(chunk_size, sample_rate)
         model = load_state_from_checkpoint(device, model_ph, ckpt)
 
+        self.sample_rate = sample_rate
         self.model_info = ModelInfo(model, device, chunk_size)

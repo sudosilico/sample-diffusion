@@ -3,13 +3,13 @@ from queue import Queue
 import threading
 import time
 import discord
+import asyncio
 import os
 from discord_bot.generator_thread import GeneratorThread
 
-class DanceDiffusionDiscordBot:
-    def __init__(self, config):
-        self.config = config
 
+class DanceDiffusionDiscordBot:
+    def __init__(self):
         bot = discord.Bot()
 
         @bot.event
@@ -21,9 +21,14 @@ class DanceDiffusionDiscordBot:
             class GeneratorRequest(object):
                 pass
 
-            def oncompleted(sample_paths):
+            async def on_completed(sample_paths):
                 for sample_path in sample_paths:
-                    ctx.respond(file=discord.File(sample_path))
+                    await ctx.respond(file=discord.File(sample_path))
+
+            def oncompleted(sample_paths):
+                loop = asyncio.get_event_loop()
+                coroutine = on_completed(sample_paths)
+                loop.run_until_complete(coroutine)
                 
             request = GeneratorRequest()
             request.seed = seed
@@ -44,7 +49,12 @@ class DanceDiffusionDiscordBot:
 
         self.bot = bot
         self.generator_thread = GeneratorThread()
+        
+    def load_model(self, ckpt="models/model.ckpt", sample_rate=48000, chunk_size=65536):
+        self.generator_thread.load_model(ckpt, sample_rate, chunk_size)
 
     def start(self, token):
         self.generator_thread.start()
+
+        print("Starting discord bot...")
         self.bot.run(token)
