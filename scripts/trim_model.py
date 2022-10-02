@@ -4,7 +4,7 @@ import time
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         print("Usage: python trim_model.py <model_path>")
         sys.exit(1)
 
@@ -13,6 +13,8 @@ def main():
     if not os.path.isfile(model_path):
         print("No file was found at the given path.")
         sys.exit(1)
+
+    print(f"Trimming model at '{model_path}'...\n")
 
     start_time = time.process_time()
 
@@ -27,7 +29,7 @@ def main():
     end_time = time.process_time()
     elapsed = end_time - start_time
 
-    trimmed_size = os.path.getsize(model_path)
+    trimmed_size = os.path.getsize(output_path)
 
     bytes = untrimmed_size - trimmed_size
     megabytes = bytes / 1024.0 / 1024.0
@@ -43,7 +45,6 @@ def main():
 def trim_model(untrimmed):
     trimmed = dict()
 
-    # before
     for k in untrimmed.keys():
         if k != "optimizer_states":
             trimmed[k] = untrimmed[k]
@@ -59,3 +60,7 @@ def trim_model(untrimmed):
     trimmed["state_dict"] = trimmed_model
 
     return trimmed
+
+
+if __name__ == "__main__":
+    main()
