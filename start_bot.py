@@ -1,21 +1,12 @@
 import os, argparse
 from dotenv import load_dotenv
-from discord_bot.bot import DanceDiffusionDiscordBot
+from discord_bot.bot import start_discord_bot
 
 def main():
     token = load_env_vars()
     args = parse_cli_args()
 
-    start_bot(token, args)
-
-
-def start_bot(token, args):
-    bot = DanceDiffusionDiscordBot()
-
-    bot.load_model(ckpt=args.ckpt, sample_rate=args.sample_rate, chunk_size=args.chunk_size)
-
-    bot.start(token)
-
+    start_discord_bot(token, args)
 
 def load_env_vars():
     load_dotenv()

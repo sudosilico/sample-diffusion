@@ -9,7 +9,7 @@ class ModelInfo:
         self.device = device
         self.chunk_size = chunk_size
 
-    def switch_models(self, model_args):
+    def switch_models(self, ckpt="models/model.ckpt", sample_rate=48000, chunk_size=65536):
         print("Switching models...")
         print("Unloading previous model...")
 
@@ -21,10 +21,6 @@ class ModelInfo:
         torch.cuda.empty_cache()
 
         print("Loading new model...")
-
-        chunk_size = model_args.spc
-        sample_rate = model_args.sr
-        ckpt = model_args.ckpt
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
