@@ -7,8 +7,9 @@ This repository contains the python project that runs machine learning tasks for
 
 ## Features
 
-- A CLI (`generate.py`) for generating audio samples from the command line using Dance Diffusion models.
-- (Planned) A socket.io server (`server.py`) that can be used as a Dance Diffusion service by applications written in any programming language that has a socket.io client.
+- A CLI for generating audio samples from the command line using Dance Diffusion models (`generate.py`).
+- A script for reducing the file size of Dance Diffusion models by removing data that is only needed for training and not inference (`scripts/trim_model.py`).
+- (Planned) A socket.io server that can be used as a Dance Diffusion service by applications written in any programming language that has a socket.io client (`server.py`).
 
 ## Using the `generate.py` CLI
 
