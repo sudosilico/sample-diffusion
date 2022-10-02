@@ -6,7 +6,6 @@ import discord
 import os
 from discord_bot.generator_thread import GeneratorThread
 
-
 class DanceDiffusionDiscordBot:
     def __init__(self, config):
         self.config = config
@@ -18,14 +17,19 @@ class DanceDiffusionDiscordBot:
             print(f"{bot.user} has connected!")
 
         @bot.slash_command()
-        async def generate(ctx, noise_level: float = 0.7, n_steps: int = 25):
-            # for key, value in ctx.__dict__.items():
-            #     print(f"{key}: {value}")
+        async def generate(ctx, seed: int = -1, samples: int = 1, steps: int = 25):
+            class GeneratorRequest(object):
+                pass
 
-            request = {
-                "noise_level": noise_level,
-                "n_steps": n_steps,
-            }
+            def oncompleted(sample_paths):
+                for sample_path in sample_paths:
+                    ctx.respond(file=discord.File(sample_path))
+                
+            request = GeneratorRequest()
+            request.seed = seed
+            request.samples = samples
+            request.steps = steps
+            request.oncompleted = oncompleted
 
             self.generator_thread.add_request(request)
 
@@ -34,8 +38,6 @@ class DanceDiffusionDiscordBot:
 
         @bot.message_command(name="Generate variation")
         async def generate_variation(ctx, message):
-            print(f"Executing in thread {threading.get_ident()}")
-
             await ctx.respond(
                 f"{ctx.author.mention} says hello to {message.author.name}!"
             )
