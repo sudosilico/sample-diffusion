@@ -8,18 +8,48 @@ class ModelInfo:
         self.model = model
         self.device = device
         self.chunk_size = chunk_size
-        pass
 
-    pass
+    def switch_models(self, model_args):
+        print("Switching models...")
+        print("Unloading previous model...")
 
+        del self.model
+        del device
+
+        print("Emptying CUDA cache...")
+
+        torch.cuda.empty_cache()
+
+        print("Loading new model...")
+
+        chunk_size = model_args.spc
+        sample_rate = model_args.sr
+        ckpt = model_args.ckpt
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        model_ph = instantiate_model(chunk_size, sample_rate)
+        model = load_state_from_checkpoint(device, model_ph, ckpt)
+
+        self.model = model
+        self.device = device
+        self.chunk_size = chunk_size
+
+        print(f"Swapped to model: '{ckpt}'")
+        
+        
 
 def load_model(model_args):
+    chunk_size = model_args.spc
+    sample_rate = model_args.sr
+    ckpt = model_args.ckpt
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model_ph = instantiate_model(model_args.spc, model_args.sr)
-    model = load_state_from_checkpoint(device, model_ph, model_args.ckpt)
+    model_ph = instantiate_model(chunk_size, sample_rate)
+    model = load_state_from_checkpoint(device, model_ph, ckpt)
 
-    return ModelInfo(model, device, model_args.spc)
+    return ModelInfo(model, device, chunk_size)
 
 
 def instantiate_model(chunk_size, model_sample_rate):
