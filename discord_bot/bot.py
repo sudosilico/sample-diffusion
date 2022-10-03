@@ -5,6 +5,7 @@ import time
 import torch
 import torchaudio
 import discord
+import functools
 import asyncio
 import os
 from sample_diffusion.inference import generate_audio
@@ -42,21 +43,16 @@ def load_models_path(models_path):
             models_meta = json.load(f)
             models_metadata = models_meta["models"]
 
-            deleted_models = []
+            def json_contains_checkpoint(path):
+                for model in models_metadata:
+                    if model["path"] == path:
+                        return True
+                
+                return False
 
-            # make sure every model in the json file exists on disk
-            for model in models_metadata:
-                if model["path"] in ckpt_paths:
-                    pass
-                else:
-                    deleted_models.append(model["path"])
-
-            
             # make sure every model on disk has a corresponding entry in the json file
             for checkpoint in ckpt_paths:
-                if checkpoint in models_metadata:
-                    pass
-                else:
+                if not json_contains_checkpoint(checkpoint):
                     models_metadata.append({
                         "path": checkpoint,
                         "name": checkpoint,
@@ -66,9 +62,6 @@ def load_models_path(models_path):
                     })
                     print(f"WARNING: Creating models.json with default sample_rate and chunk_size values for '{checkpoint}'.")
                     print("You may need to edit this file to change these to the correct values.")
-
-            for model in deleted_models:
-                models_metadata.remove(model)
     else:
         for checkpoint in ckpt_paths:
             model = {
@@ -93,7 +86,7 @@ class DanceDiffusionDiscordBot:
         self.output_path = output_path
         self.models_path = models_path
 
-        ckpt_paths, models_metadata = load_models_path()
+        ckpt_paths, models_metadata = load_models_path(models_path)
         self.ckpt_paths = ckpt_paths
         self.models_metadata = models_metadata
 
@@ -120,10 +113,18 @@ class DanceDiffusionDiscordBot:
         @bot.slash_command()
         async def generate(
             ctx, 
+            model: discord.Option(str, "", autocomplete=get_ckpt),
             seed: int = -1, 
             samples: int = 1, 
-            steps: int = 25, 
-            model: discord.Option(str, "", autocomplete=get_ckpt) = "models/glitch_trim.ckpt"):
+            steps: int = 25):
+
+            model_exists = os.path.exists(os.path.join(self.models_path, model))
+
+            if not model_exists:
+                await ctx.respond(content=f"{ctx.author.mention} Invalid model. Please choose one of the following models: {self.ckpt_paths}")
+                return
+
+            use_seed = seed if seed != -1 else torch.seed()
 
             class GeneratorRequest(object):
                 pass
@@ -132,38 +133,52 @@ class DanceDiffusionDiscordBot:
                 await ctx.respond(content=f"{ctx.author.mention} The queue is currently full. Please try again later.")
                 return
 
-            async def on_completed(sample_paths):
+            async def on_completed(sample_paths, request, seed):
                 files = []
 
                 for sample_path in sample_paths:
                     files.append(discord.File(sample_path))
 
                 if len(sample_paths) > 1:
-                    message = "Your samples are ready"
+                    message = "Your samples are ready:"
                 else:
-                    message = "Your sample is ready"
+                    message = "Your sample is ready:"
 
-                await ctx.send_followup(files=files, content=f"{ctx.author.mention} {message}:")
+                message += f"\n**Seed:** {seed}"
+                message += f"\n**Samples:** {request.samples}"
+                message += f"\n**Steps:** {request.steps}"
+                message += f"\n**Model:** {model}\n"
+
+                await ctx.respond(files=files, content=f"{ctx.author.mention} {message}")
 
             discord_loop = self.discord_loop
 
-            def oncompleted(sample_paths):
-                coroutine = on_completed(sample_paths)
-                discord_loop.create_task(coroutine)
-                
             request = GeneratorRequest()
-            request.seed = seed
+
+            def oncompleted(sample_paths, req, seed):
+                coroutine = on_completed(sample_paths, req, seed)
+                discord_loop.create_task(coroutine)
+
+            request.seed = use_seed
             request.samples = samples
             request.steps = steps
             request.ckpt = os.path.join(self.models_path, model)
             request.oncompleted = oncompleted
 
+            print("Getting model metadata...")
+            sample_rate, chunk_size = self.get_model_meta(model)
+
+            request.sample_rate = sample_rate
+            request.chunk_size = chunk_size            
+
+            queue_size = len(self.processing_tasks)
+            await ctx.respond(f"{ctx.author.mention} Your request has been added to the queue. There are currently {queue_size} tasks ahead of you in the queue.")
+
             coroutine = self.process_request(request)
             request.future = asyncio.run_coroutine_threadsafe(coroutine, self.generator_loop)
             self.processing_tasks.append(request.future)
 
-            queue_size = len(self.processing_tasks)
-            await ctx.respond(f"{ctx.author.mention} Your request has been added to the queue. There are currently {queue_size} tasks in the queue.")
+
             
         async def select_model(self, ctx, callback):
             class ModelSelectView(discord.ui.View):
@@ -217,8 +232,11 @@ class DanceDiffusionDiscordBot:
         self.generator_loop.run_forever()
         
     def load_model(self, ckpt, sample_rate, chunk_size):
+        print("Loading model...")
         if self.ckpt == None:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            device_type = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"torch device: {device_type}")
+            device = torch.device(device_type)
             model_ph = instantiate_model(chunk_size, sample_rate)
             model = load_state_from_checkpoint(device, model_ph, ckpt)
 
@@ -231,18 +249,25 @@ class DanceDiffusionDiscordBot:
             if self.ckpt == ckpt:
                 print(f"Model already loaded: '{ckpt}'.")
             else:
-                self.model_info.switch_models(ckpt, sample_rate, chunk_size)
+                self.model = self.model_info.switch_models(ckpt, sample_rate, chunk_size)
                 self.ckpt = ckpt
+                print(f"Model loaded: '{ckpt}'")
+
+        
 
     def get_model_meta(self, ckpt):
+        print("get_model_metadata")
+        print(f"len(self.models_metadata): {len(self.models_metadata)}")
+
         for model_meta in self.models_metadata:
-            if model_meta["ckpt"] == ckpt:
+            if model_meta["path"] == ckpt:
                 sample_rate = model_meta["sample_rate"]
                 chunk_size = model_meta["chunk_size"]
 
                 return sample_rate, chunk_size
 
-        raise Exception(f"Could not find model metadata for '{ckpt}'.")
+        print(f"WARNING: Could not locate '{ckpt}' path in model metadata. Using default sample_rate and chunk_size.")
+        return 48000, 65536
         
     def start(self, token):
         self.generator_thread.start()
@@ -255,19 +280,47 @@ class DanceDiffusionDiscordBot:
     async def process_request(self, request):
         print("Processing request...")
 
-        seed = request.seed
         samples = request.samples
         steps = request.steps
         oncompleted = request.oncompleted
+        sample_rate = request.sample_rate
+        chunk_size = request.chunk_size
+        ckpt = request.ckpt
 
-        self.model
+        async def load_model(ckpt, sr, cs):
+            model = self.load_model(request.ckpt, sample_rate, chunk_size)
+            return model
 
-        self.load_model(self, request.ckpt, 44100, 1024)
+        print("loading model...")
+        #self.load_model(request.ckpt, sample_rate, chunk_size)
+
+        if self.ckpt == None:
+            device_type = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"torch device: {device_type}")
+            device = torch.device(device_type)
+            model_ph = instantiate_model(chunk_size, sample_rate)
+            model = load_state_from_checkpoint(device, model_ph, ckpt)
+
+            self.sample_rate = sample_rate
+            self.model_info = ModelInfo(model, device, chunk_size)
+            self.ckpt = ckpt
+        else:
+            self.sample_rate = sample_rate
+
+            if self.ckpt == ckpt:
+                print(f"Model already loaded: '{ckpt}'.")
+            else:
+                self.model = self.model_info.switch_models(ckpt, sample_rate, chunk_size)
+                self.ckpt = ckpt
+                print(f"Model loaded: '{ckpt}'")
+
+        print("model loaded...")
+        # request.future = asyncio.run_coroutine_threadsafe(coroutine, self.discord_loop)
 
         print("Generating audio...")
-        print(f"Seed: {seed}, Samples: {samples}, Steps: {steps}")
+        print(f"Seed: {request.seed}, Samples: {samples}, Steps: {steps}")
 
-        audio_out, seed = generate_audio(seed, samples, steps, self.model_info)
+        audio_out, seed = generate_audio(request.seed, samples, steps, self.model_info)
 
         print("Done. Exporting audio...")
 
@@ -290,7 +343,9 @@ class DanceDiffusionDiscordBot:
 
         print("Saved audio samples to:")
         print(samples_output_path)
-        
-        oncompleted(sample_paths)
-        self.processing_tasks.remove(request.future)
+
+        if request.future in self.processing_tasks:
+            self.processing_tasks.remove(request.future)
+
+        oncompleted(sample_paths, request, seed)
 
