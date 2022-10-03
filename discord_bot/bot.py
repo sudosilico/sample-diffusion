@@ -6,7 +6,12 @@ import discord
 import asyncio
 import os
 from sample_diffusion.inference import generate_audio
-from sample_diffusion.model import ModelInfo, instantiate_model, load_state_from_checkpoint
+from sample_diffusion.model import (
+    ModelInfo,
+    instantiate_model,
+    load_state_from_checkpoint,
+)
+
 
 def start_discord_bot(token, args):
     models_path = args.models_path
@@ -18,11 +23,12 @@ def start_discord_bot(token, args):
     print("Starting discord bot...")
     bot.start(token)
 
+
 def load_models_path(models_path):
     ckpt_paths = []
 
     if not os.path.exists(models_path):
-            os.makedirs(models_path)
+        os.makedirs(models_path)
 
     for root, dirs, files in os.walk(models_path):
         for file in files:
@@ -44,21 +50,27 @@ def load_models_path(models_path):
                 for model in models_metadata:
                     if model["path"] == path:
                         return True
-                
+
                 return False
 
             # make sure every model on disk has a corresponding entry in the json file
             for checkpoint in ckpt_paths:
                 if not json_contains_checkpoint(checkpoint):
-                    models_metadata.append({
-                        "path": checkpoint,
-                        "name": checkpoint,
-                        "sample_rate": 48000,
-                        "chunk_size": 65536,
-                        "description": "",
-                    })
-                    print(f"WARNING: Creating models.json with default sample_rate and chunk_size values for '{checkpoint}'.")
-                    print("You may need to edit this file to change these to the correct values.")
+                    models_metadata.append(
+                        {
+                            "path": checkpoint,
+                            "name": checkpoint,
+                            "sample_rate": 48000,
+                            "chunk_size": 65536,
+                            "description": "",
+                        }
+                    )
+                    print(
+                        f"WARNING: Creating models.json with default sample_rate and chunk_size values for '{checkpoint}'."
+                    )
+                    print(
+                        "You may need to edit this file to change these to the correct values."
+                    )
     else:
         for checkpoint in ckpt_paths:
             model = {
@@ -70,13 +82,18 @@ def load_models_path(models_path):
             }
 
             models_metadata.append(model)
-            print(f"WARNING: Creating models.json with default sample_rate and chunk_size values for '{checkpoint}'.")
-            print("You may need to edit this file to change these to the correct values.")
+            print(
+                f"WARNING: Creating models.json with default sample_rate and chunk_size values for '{checkpoint}'."
+            )
+            print(
+                "You may need to edit this file to change these to the correct values."
+            )
 
     with open(models_json_path, "w") as f:
         json.dump({"models": models_metadata}, f, indent=4)
 
     return ckpt_paths, models_metadata
+
 
 class DanceDiffusionDiscordBot:
     def __init__(self, output_path, models_path, max_queue_size):
@@ -107,16 +124,25 @@ class DanceDiffusionDiscordBot:
 
         @bot.slash_command()
         async def generate(
-            ctx, 
-            model: discord.Option(str, "The Dance Diffusion model file to use for generation.", autocomplete=get_ckpt_paths),
-            seed: discord.Option(int, "The random seed. Use -1 or leave this out for a random seed.") = -1,
-            samples: discord.Option(int, "The number of samples to generate.") = 1, 
-            steps: discord.Option(int, "The number of steps to perform.") = 25):
+            ctx,
+            model: discord.Option(
+                str,
+                "The Dance Diffusion model file to use for generation.",
+                autocomplete=get_ckpt_paths,
+            ),
+            seed: discord.Option(
+                int, "The random seed. Use -1 or leave this out for a random seed."
+            ) = -1,
+            samples: discord.Option(int, "The number of samples to generate.") = 1,
+            steps: discord.Option(int, "The number of steps to perform.") = 25,
+        ):
 
             model_exists = os.path.exists(os.path.join(self.models_path, model))
 
             if not model_exists:
-                await ctx.respond(content=f"{ctx.author.mention} Invalid model. Please choose one of the following models: {self.ckpt_paths}")
+                await ctx.respond(
+                    content=f"{ctx.author.mention} Invalid model. Please choose one of the following models: {self.ckpt_paths}"
+                )
                 return
 
             use_seed = seed if seed != -1 else torch.seed()
@@ -125,7 +151,9 @@ class DanceDiffusionDiscordBot:
                 pass
 
             if len(self.processing_tasks) >= self.max_queue_size:
-                await ctx.respond(content=f"{ctx.author.mention} The queue is currently full. Please try again later.")
+                await ctx.respond(
+                    content=f"{ctx.author.mention} The queue is currently full. Please try again later."
+                )
                 return
 
             async def on_completed(sample_paths, request, seed):
@@ -144,7 +172,9 @@ class DanceDiffusionDiscordBot:
                 message += f"\n**Steps:** {request.steps}"
                 message += f"\n**Model:** {model}\n"
 
-                await ctx.respond(files=files, content=f"{ctx.author.mention} {message}")
+                await ctx.respond(
+                    files=files, content=f"{ctx.author.mention} {message}"
+                )
 
             discord_loop = self.discord_loop
 
@@ -164,20 +194,23 @@ class DanceDiffusionDiscordBot:
             sample_rate, chunk_size = self.get_model_meta(model)
 
             request.sample_rate = sample_rate
-            request.chunk_size = chunk_size            
+            request.chunk_size = chunk_size
 
             queue_size = len(self.processing_tasks)
-            await ctx.respond(f"{ctx.author.mention} Your request has been added to the queue. There are currently {queue_size} tasks ahead of you in the queue.")
+            await ctx.respond(
+                f"{ctx.author.mention} Your request has been added to the queue. There are currently {queue_size} tasks ahead of you in the queue."
+            )
 
             coroutine = self.process_request(request)
-            request.future = asyncio.run_coroutine_threadsafe(coroutine, self.generator_loop)
+            request.future = asyncio.run_coroutine_threadsafe(
+                coroutine, self.generator_loop
+            )
             self.processing_tasks.append(request.future)
 
         self.bot = bot
 
     def run_generator_thread(self):
         self.generator_loop.run_forever()
-        
 
     def get_model_meta(self, ckpt):
         for model_meta in self.models_metadata:
@@ -187,9 +220,11 @@ class DanceDiffusionDiscordBot:
 
                 return sample_rate, chunk_size
 
-        print(f"WARNING: Could not locate '{ckpt}' path in model metadata. Using default sample_rate and chunk_size.")
+        print(
+            f"WARNING: Could not locate '{ckpt}' path in model metadata. Using default sample_rate and chunk_size."
+        )
         return 48000, 65536
-        
+
     def start(self, token):
         self.generator_thread.start()
         self.bot.run(token)
@@ -224,7 +259,9 @@ class DanceDiffusionDiscordBot:
             if self.ckpt == ckpt:
                 print(f"Model already loaded: '{ckpt}'.")
             else:
-                self.model = self.model_info.switch_models(ckpt, sample_rate, chunk_size)
+                self.model = self.model_info.switch_models(
+                    ckpt, sample_rate, chunk_size
+                )
                 self.ckpt = ckpt
                 print(f"Model loaded: '{ckpt}'")
 
@@ -238,9 +275,7 @@ class DanceDiffusionDiscordBot:
 
         # save audio samples to files
         for ix, sample in enumerate(audio_out):
-            output_file = os.path.join(
-                samples_output_path, f"sample_{ix + 1}.wav"
-            )
+            output_file = os.path.join(samples_output_path, f"sample_{ix + 1}.wav")
             open(output_file, "a").close()
             output = sample.cpu()
             torchaudio.save(output_file, output, self.sample_rate)
@@ -253,4 +288,3 @@ class DanceDiffusionDiscordBot:
             self.processing_tasks.remove(request.future)
 
         oncompleted(sample_paths, request, seed)
-
