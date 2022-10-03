@@ -65,6 +65,16 @@ To start the bot, run the following command from the [conda environment](https:/
 python start_discord_bot.py
 ```
 
+## Using the bot
+
+The bot provides the following slash command:
+
+- **/generate** - Generates a number of audio samples using one of the available models. Arguments:
+    - `model` - The model to use for sample generation _(required)_
+    - `samples`- The number of samples to generate (default: `1`)
+    - `steps` - The number of steps to perform during generation (default: `25`)
+    - `seed` - The random seed, or `-1` for a random one (default: `-1`)
+
 ## `start_discord_bot.py` Command Line Arguments
 
 | argument | type | default | desc |
