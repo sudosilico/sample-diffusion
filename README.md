@@ -4,11 +4,12 @@
 
 This repository contains the python project that runs machine learning tasks for the [Sample Diffusion web application](https://github.com/sudosilico/sample-diffusion-app). It is used to generate audio samples using Harmonai [Dance Diffusion](https://github.com/Harmonai-org/sample-generator) models.
 
-
 ## Features
 
 - A CLI for generating audio samples from the command line using Dance Diffusion models. (`generate.py`)
 - A script for reducing the file size of Dance Diffusion models by removing data that is only needed for training and not inference. (`scripts/trim_model.py`)
+- A discord bot for generating samples in Discord servers. (`start_discord_bot.py`)
+    - [View the guide](https://github.com/sudosilico/sample-diffusion/blob/main/docs/discord.md)
 - (Planned) A socket.io server that can be used as a Dance Diffusion service by applications written in any programming language that has a socket.io client. (`server.py`)
 
 ## Installation

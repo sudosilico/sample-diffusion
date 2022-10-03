@@ -19,6 +19,8 @@ dependencies:
     - torchmetrics==0.6.0
     - PySoundFile
     - flask-socketio
+    - py-cord
+    - python-dotenv
     - git+https://github.com/harmonai-org/sample-generator.git#egg=audio_diffusion
     - git+https://github.com/crowsonkb/v-diffusion-pytorch.git#egg=v-diffusion-pytorch
 variables:

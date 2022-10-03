@@ -34,8 +34,8 @@ def main():
     bytes = untrimmed_size - trimmed_size
     megabytes = bytes / 1024.0 / 1024.0
 
-    print(f"Untrimmed: {untrimmed_size} bytes.")
-    print(f"Trimmed: {trimmed_size} bytes.")
+    print(f"Untrimmed: {untrimmed_size} B, {untrimmed_size / 1024.0 / 1024.0} MB")
+    print(f"Trimmed: {trimmed_size} B, {trimmed_size / 1024.0 / 1024.0} MB")
 
     print(
         f"\nDone! Trimmed {untrimmed_size - trimmed_size} B, or {megabytes} MB, in {elapsed} seconds."
