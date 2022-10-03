@@ -1,7 +1,5 @@
 import json
-from queue import Queue
 import threading
-import time
 import torch
 import torchaudio
 import discord
@@ -165,51 +163,11 @@ class DanceDiffusionDiscordBot:
             queue_size = len(self.processing_tasks)
             await ctx.respond(f"{ctx.author.mention} Your request has been added to the queue. There are currently {queue_size} tasks in the queue.")
             
-        async def select_model(self, ctx, callback):
-            class ModelSelectView(discord.ui.View):
-                async def on_timeout(self):
-                    for child in self.children:
-                        child.disabled = True
-                    await self.message.edit(content="You took too long!", view=self)
-
-                @discord.ui.button(label="Button 1", row=0, style=discord.ButtonStyle.primary)
-                async def first_button_callback(self, button, interaction):
-                    await interaction.response.send_message("You pressed me!")
-
-                @discord.ui.button(label="Button 2", row=0, style=discord.ButtonStyle.primary)
-                async def second_button_callback(self, button, interaction):
-                    await interaction.response.send_message("You pressed me!")
-
-                @discord.ui.select(
-                    placeholder = "Choose a Flavor!", # the placeholder text that will be displayed if nothing is selected
-                    min_values = 1, # the minimum number of values that must be selected by the users
-                    max_values = 1, # the maximum number of values that can be selected by the users
-                    options = [ # the list of options from which users can choose, a required field
-                        discord.SelectOption(
-                            label="Vanilla",
-                            description="Pick this if you like vanilla!"
-                        ),
-                        discord.SelectOption(
-                            label="Chocolate",
-                            description="Pick this if you like chocolate!"
-                        ),
-                        discord.SelectOption(
-                            label="Strawberry",
-                            description="Pick this if you like strawberry!"
-                        )
-                    ]
-                )
-                async def select_callback(self, select, interaction):
-                    await callback()
-                    await interaction.response.send_message(f"Awesome! I like {select.values[0]} too!")
-
-            await ctx.send("Choose a flavor!", view=ModelSelectView())
-
-        @bot.message_command(name="Generate variation")
-        async def generate_variation(ctx, message):
-            await ctx.respond(
-                f"{ctx.author.mention} says hello to {message.author.name}!"
-            )
+        # @bot.message_command(name="Generate variation")
+        # async def generate_variation(ctx, message):
+        #     await ctx.respond(
+        #         f"{ctx.author.mention} says hello to {message.author.name}!"
+        #     )
 
         self.bot = bot
 
@@ -235,12 +193,9 @@ class DanceDiffusionDiscordBot:
                 self.ckpt = ckpt
 
     def get_model_meta(self, ckpt):
-        for model_meta in self.models_metadata:
-            if model_meta["ckpt"] == ckpt:
-                sample_rate = model_meta["sample_rate"]
-                chunk_size = model_meta["chunk_size"]
-
-                return sample_rate, chunk_size
+        for model in self.models_metadata:
+            if model["ckpt"] == ckpt:
+                return model
 
         raise Exception(f"Could not find model metadata for '{ckpt}'.")
         
@@ -259,8 +214,6 @@ class DanceDiffusionDiscordBot:
         samples = request.samples
         steps = request.steps
         oncompleted = request.oncompleted
-
-        self.model
 
         self.load_model(self, request.ckpt, 44100, 1024)
 
@@ -292,5 +245,7 @@ class DanceDiffusionDiscordBot:
         print(samples_output_path)
         
         oncompleted(sample_paths)
-        self.processing_tasks.remove(request.future)
+
+        if request.future in self.processing_tasks:
+            self.processing_tasks.remove(request.future)
 
