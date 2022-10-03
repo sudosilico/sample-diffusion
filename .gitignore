@@ -1,6 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 inputs
+audio_in
+outputs_from_discord_bot
 
 # dependencies
 node_modules
