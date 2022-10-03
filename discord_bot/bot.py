@@ -10,20 +10,93 @@ import os
 from sample_diffusion.inference import generate_audio
 from sample_diffusion.model import ModelInfo, instantiate_model, load_state_from_checkpoint
 
-def start_discord_bot(token, args, output_path="outputs_from_discord_bot", models_path="models", max_queue_size=10):
+def start_discord_bot(token, args):
+    models_path = args.models_path
+    output_path = args.output_path
+    max_queue_size = args.max_queue_size
+
     bot = DanceDiffusionDiscordBot(output_path, models_path, max_queue_size)
 
-    print(f"Loading model checkpoint '{args.ckpt}'...")
-    bot.load_model(ckpt=args.ckpt, sample_rate=args.sample_rate, chunk_size=args.chunk_size)
-    
     print("Starting discord bot...")
     bot.start(token)
+
+def load_models_path(models_path):
+    ckpt_paths = []
+
+    if not os.path.exists(models_path):
+            os.makedirs(models_path)
+
+    for root, dirs, files in os.walk(models_path):
+        for file in files:
+            if file.endswith(".ckpt"):
+                ckpt_paths.append(file)
+
+    print("Found the following model checkpoints:")
+    print(ckpt_paths)
+
+    models_json_path = os.path.join(models_path, "models.json")
+    models_metadata = []
+
+    if os.path.exists(models_json_path):
+        with open(models_json_path, "r") as f:
+            models_meta = json.load(f)
+            models_metadata = models_meta["models"]
+
+            deleted_models = []
+
+            # make sure every model in the json file exists on disk
+            for model in models_metadata:
+                if model["path"] in ckpt_paths:
+                    pass
+                else:
+                    deleted_models.append(model["path"])
+
+            
+            # make sure every model on disk has a corresponding entry in the json file
+            for checkpoint in ckpt_paths:
+                if checkpoint in models_metadata:
+                    pass
+                else:
+                    models_metadata.append({
+                        "path": checkpoint,
+                        "name": checkpoint,
+                        "sample_rate": 48000,
+                        "chunk_size": 65536,
+                        "description": "",
+                    })
+                    print(f"WARNING: Creating models.json with default sample_rate and chunk_size values for '{checkpoint}'.")
+                    print("You may need to edit this file to change these to the correct values.")
+
+            for model in deleted_models:
+                models_metadata.remove(model)
+    else:
+        for checkpoint in ckpt_paths:
+            model = {
+                "path": checkpoint,
+                "name": checkpoint,
+                "sample_rate": 48000,
+                "chunk_size": 65536,
+                "description": "",
+            }
+
+            models_metadata.append(model)
+            print(f"WARNING: Creating models.json with default sample_rate and chunk_size values for '{checkpoint}'.")
+            print("You may need to edit this file to change these to the correct values.")
+
+    with open(models_json_path, "w") as f:
+        json.dump({"models": models_metadata}, f, indent=4)
+
+    return ckpt_paths, models_metadata
 
 class DanceDiffusionDiscordBot:
     def __init__(self, output_path, models_path, max_queue_size):
         self.output_path = output_path
         self.models_path = models_path
-        self.ckpt_paths = ['models/glitch.ckpt', 'models/glitch_trim.ckpt']
+
+        ckpt_paths, models_metadata = load_models_path()
+        self.ckpt_paths = ckpt_paths
+        self.models_metadata = models_metadata
+
         self.max_queue_size = max_queue_size
         self.ckpt = None
 
@@ -34,6 +107,7 @@ class DanceDiffusionDiscordBot:
 
         bot = discord.Bot()
         bot.loop = self.discord_loop
+
 
         @bot.event
         async def on_ready():
@@ -81,6 +155,7 @@ class DanceDiffusionDiscordBot:
             request.seed = seed
             request.samples = samples
             request.steps = steps
+            request.ckpt = os.path.join(self.models_path, model)
             request.oncompleted = oncompleted
 
             coroutine = self.process_request(request)
@@ -141,7 +216,7 @@ class DanceDiffusionDiscordBot:
     def run_generator_thread(self):
         self.generator_loop.run_forever()
         
-    def load_model(self, ckpt="models/model.ckpt", sample_rate=48000, chunk_size=65536):
+    def load_model(self, ckpt, sample_rate, chunk_size):
         if self.ckpt == None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model_ph = instantiate_model(chunk_size, sample_rate)
@@ -152,9 +227,23 @@ class DanceDiffusionDiscordBot:
             self.ckpt = ckpt
         else:
             self.sample_rate = sample_rate
-            self.model_info.switch_models(ckpt, sample_rate, chunk_size)
-            self.ckpt = ckpt
 
+            if self.ckpt == ckpt:
+                print(f"Model already loaded: '{ckpt}'.")
+            else:
+                self.model_info.switch_models(ckpt, sample_rate, chunk_size)
+                self.ckpt = ckpt
+
+    def get_model_meta(self, ckpt):
+        for model_meta in self.models_metadata:
+            if model_meta["ckpt"] == ckpt:
+                sample_rate = model_meta["sample_rate"]
+                chunk_size = model_meta["chunk_size"]
+
+                return sample_rate, chunk_size
+
+        raise Exception(f"Could not find model metadata for '{ckpt}'.")
+        
     def start(self, token):
         self.generator_thread.start()
         self.bot.run(token)
@@ -170,6 +259,10 @@ class DanceDiffusionDiscordBot:
         samples = request.samples
         steps = request.steps
         oncompleted = request.oncompleted
+
+        self.model
+
+        self.load_model(self, request.ckpt, 44100, 1024)
 
         print("Generating audio...")
         print(f"Seed: {seed}, Samples: {samples}, Steps: {steps}")

@@ -26,17 +26,21 @@ def parse_cli_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--ckpt",
+        "--models_path",
         type=str,
-        default="models/model.ckpt",
-        help="path to the model to be used",
+        default="models",
+        help="path to the models folder",
     )
 
     parser.add_argument(
-        "--chunk_size", type=int, default=65536, help="the chunk size (in samples) of the model"
+        "--output_path",
+        type=str,
+        default="outputs_from_discord_bot",
+        help="path to the outputs folder",
     )
+
     parser.add_argument(
-        "--sample_rate", type=int, default=48000, help="the samplerate of the model"
+        "--max_queue_size", type=int, default=10, help="the maximum size of the request queue"
     )
 
     return parser.parse_args()
