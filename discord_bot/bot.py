@@ -3,7 +3,6 @@ import threading
 import torch
 import torchaudio
 import discord
-import functools
 import asyncio
 import os
 from sample_diffusion.inference import generate_audio
@@ -99,22 +98,20 @@ class DanceDiffusionDiscordBot:
         bot = discord.Bot()
         bot.loop = self.discord_loop
 
+        async def get_ckpt_paths(ctx: discord.AutocompleteContext):
+            return self.ckpt_paths
 
         @bot.event
         async def on_ready():
             print(f"{bot.user} has connected!")
 
-        async def get_ckpt(ctx: discord.AutocompleteContext):
-            """Return's A List Of Autocomplete Results"""
-            return self.ckpt_paths # from your database
-
         @bot.slash_command()
         async def generate(
             ctx, 
-            model: discord.Option(str, "", autocomplete=get_ckpt),
-            seed: int = -1, 
-            samples: int = 1, 
-            steps: int = 25):
+            model: discord.Option(str, "The Dance Diffusion model file to use for generation.", autocomplete=get_ckpt_paths),
+            seed: discord.Option(int, "The random seed. Use -1 or leave this out for a random seed.") = -1,
+            samples: discord.Option(int, "The number of samples to generate.") = 1, 
+            steps: discord.Option(int, "The number of steps to perform.") = 25):
 
             model_exists = os.path.exists(os.path.join(self.models_path, model))
 
@@ -176,47 +173,13 @@ class DanceDiffusionDiscordBot:
             request.future = asyncio.run_coroutine_threadsafe(coroutine, self.generator_loop)
             self.processing_tasks.append(request.future)
 
-
-            
-        # @bot.message_command(name="Generate variation")
-        # async def generate_variation(ctx, message):
-        #     await ctx.respond(
-        #         f"{ctx.author.mention} says hello to {message.author.name}!"
-        #     )
-
         self.bot = bot
 
     def run_generator_thread(self):
         self.generator_loop.run_forever()
         
-    def load_model(self, ckpt, sample_rate, chunk_size):
-        print("Loading model...")
-        if self.ckpt == None:
-            device_type = "cuda" if torch.cuda.is_available() else "cpu"
-            print(f"torch device: {device_type}")
-            device = torch.device(device_type)
-            model_ph = instantiate_model(chunk_size, sample_rate)
-            model = load_state_from_checkpoint(device, model_ph, ckpt)
-
-            self.sample_rate = sample_rate
-            self.model_info = ModelInfo(model, device, chunk_size)
-            self.ckpt = ckpt
-        else:
-            self.sample_rate = sample_rate
-
-            if self.ckpt == ckpt:
-                print(f"Model already loaded: '{ckpt}'.")
-            else:
-                self.model = self.model_info.switch_models(ckpt, sample_rate, chunk_size)
-                self.ckpt = ckpt
-                print(f"Model loaded: '{ckpt}'")
-
-        
 
     def get_model_meta(self, ckpt):
-        print("get_model_metadata")
-        print(f"len(self.models_metadata): {len(self.models_metadata)}")
-
         for model_meta in self.models_metadata:
             if model_meta["path"] == ckpt:
                 sample_rate = model_meta["sample_rate"]
@@ -236,8 +199,6 @@ class DanceDiffusionDiscordBot:
             await asyncio.sleep(1)
 
     async def process_request(self, request):
-        print("Processing request...")
-
         samples = request.samples
         steps = request.steps
         oncompleted = request.oncompleted
@@ -245,16 +206,10 @@ class DanceDiffusionDiscordBot:
         chunk_size = request.chunk_size
         ckpt = request.ckpt
 
-        async def load_model(ckpt, sr, cs):
-            model = self.load_model(request.ckpt, sample_rate, chunk_size)
-            return model
-
         print("loading model...")
-        #self.load_model(request.ckpt, sample_rate, chunk_size)
 
         if self.ckpt == None:
             device_type = "cuda" if torch.cuda.is_available() else "cpu"
-            print(f"torch device: {device_type}")
             device = torch.device(device_type)
             model_ph = instantiate_model(chunk_size, sample_rate)
             model = load_state_from_checkpoint(device, model_ph, ckpt)
@@ -262,6 +217,7 @@ class DanceDiffusionDiscordBot:
             self.sample_rate = sample_rate
             self.model_info = ModelInfo(model, device, chunk_size)
             self.ckpt = ckpt
+            print(f"Model loaded: '{ckpt}'")
         else:
             self.sample_rate = sample_rate
 
@@ -272,16 +228,7 @@ class DanceDiffusionDiscordBot:
                 self.ckpt = ckpt
                 print(f"Model loaded: '{ckpt}'")
 
-        print("model loaded...")
-        # request.future = asyncio.run_coroutine_threadsafe(coroutine, self.discord_loop)
-
-        print("Generating audio...")
-        print(f"Seed: {request.seed}, Samples: {samples}, Steps: {steps}")
-
         audio_out, seed = generate_audio(request.seed, samples, steps, self.model_info)
-
-        print("Done. Exporting audio...")
-
         samples_output_path = os.path.join(self.output_path, f"{seed}_{steps}")
 
         if not os.path.exists(samples_output_path):
