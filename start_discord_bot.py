@@ -1,4 +1,5 @@
 import os, argparse
+import configparser
 from dotenv import load_dotenv
 from discord_bot.bot import start_discord_bot
 
@@ -6,8 +7,9 @@ from discord_bot.bot import start_discord_bot
 def main():
     token = load_env_vars()
     args = parse_cli_args()
+    config = load_config("config.ini")
 
-    start_discord_bot(token, args)
+    start_discord_bot(token, args, config)
 
 
 def load_env_vars():
@@ -22,6 +24,20 @@ def load_env_vars():
         exit(1)
 
     return token
+
+
+def load_config(config_path):
+    config = configparser.ConfigParser()
+
+    if not os.path.exists(config_path):
+        print(
+            "Error: Config file 'config.ini' was not found. Ensure you are running the script from the root directory."
+        )
+        exit(1)
+
+    config.read(config_path)
+
+    return config
 
 
 def parse_cli_args():
