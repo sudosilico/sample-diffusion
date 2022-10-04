@@ -8,6 +8,7 @@ import os
 from sample_diffusion.inference import generate_audio
 from sample_diffusion.model import (
     ModelInfo,
+    get_torch_device_type,
     instantiate_model,
     load_state_from_checkpoint,
 )
@@ -285,8 +286,9 @@ class DanceDiffusionDiscordBot:
         print("loading model...")
 
         if self.ckpt == None:
-            device_type = "cuda" if torch.cuda.is_available() else "cpu"
+            device_type = get_torch_device_type()
             device = torch.device(device_type)
+
             model_ph = instantiate_model(chunk_size, sample_rate)
             model = load_state_from_checkpoint(device, model_ph, ckpt)
 

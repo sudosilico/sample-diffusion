@@ -1,27 +1,21 @@
 name: sd_backend
 channels:
-  - pytorch
+  - pytorch-nightly
   - conda-forge
 dependencies: 
   - git
-  - python==3.10.5
-  - pip==22.2.2
-
-  - pytorch
-
-  - numpy==1.23.2
+  - pip=22.2.2
+  - python=3.10.5
   - setuptools
+  - pytorch
+  - torchaudio
+  - torchvision
   - pip:
     - -e .
-    - torchvision
-    - torchaudio
-    - pytorch-lightning==1.4.2
-    - torchmetrics==0.6.0
-    - PySoundFile
     - flask-socketio
     - py-cord
     - python-dotenv
-    - git+https://github.com/harmonai-org/sample-generator.git#egg=audio_diffusion
+    - git+https://github.com/harmonai-org/sample-generator.git#egg=sample_generator
     - git+https://github.com/crowsonkb/v-diffusion-pytorch.git#egg=v-diffusion-pytorch
 variables:
   PYTORCH_ENABLE_MPS_FALLBACK: 1

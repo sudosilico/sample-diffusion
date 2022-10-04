@@ -10,7 +10,8 @@ class ModelInfo:
         self.chunk_size = chunk_size
 
     def switch_models(self, ckpt="models/model.ckpt", sample_rate=48000, chunk_size=65536):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device_type = get_torch_device_type()
+        device = torch.device(device_type)
 
         model_ph = instantiate_model(chunk_size, sample_rate)
         model = load_state_from_checkpoint(device, model_ph, ckpt)
@@ -19,14 +20,29 @@ class ModelInfo:
         self.device = device
         self.chunk_size = chunk_size
         
-        
+def get_torch_device_type():
+    if is_mps_available():
+        return "mps"
+
+    if torch.cuda.is_available():
+        return "cuda"
+
+    return "cpu"
+
+def is_mps_available():
+    try:
+        return torch.backends.mps.is_available()
+    except:
+        return False
+
 
 def load_model(model_args):
     chunk_size = model_args.spc
     sample_rate = model_args.sr
     ckpt = model_args.ckpt
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device_type = get_torch_device_type()
+    device = torch.device(device_type)
 
     model_ph = instantiate_model(chunk_size, sample_rate)
     model = load_state_from_checkpoint(device, model_ph, ckpt)
@@ -54,5 +70,5 @@ def instantiate_model(chunk_size, model_sample_rate):
 
 
 def load_state_from_checkpoint(device, model, checkpoint_path):
-    model.load_state_dict(torch.load(checkpoint_path)["state_dict"], strict=False)
+    model.load_state_dict(torch.load(checkpoint_path, map_location=device)["state_dict"], strict=False)
     return model.requires_grad_(False).to(device)
