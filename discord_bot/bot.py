@@ -121,6 +121,7 @@ class DanceDiffusionDiscordBot:
         async def on_ready():
             print(f"{bot.user} has connected!")
 
+        max_steps = int(self.config.get('admin', 'max_steps'))
         
         @bot.slash_command()
         async def generate(
@@ -142,7 +143,7 @@ class DanceDiffusionDiscordBot:
                 max_value=10,
                 default=1,
             ) = 1,
-            steps: discord.Option(int, "The number of steps to perform.", min_value=1, max_value=self.config.get('admin', 'max_steps'), default=25) = 25,
+            steps: discord.Option(int, "The number of steps to perform.", min_value=1, max_value=max_steps, default=25) = 25,
         ):
 
             model_exists = os.path.exists(os.path.join(self.models_path, model))
