@@ -24,11 +24,11 @@ DISCORD_BOT_TOKEN=<your bot token>
 
 You can find your bot token in the 'Bot' section of your Discord Application, under your bot's username field.
 
-## CLI Options
+## Adding your models
 
-By default, models are expected to be in a `models` folder in the project root. You can can set a custom models folder using the `--models_path` argument.
+By default, models are expected to be in a `models` folder in the project root. You can can set a custom models folder using the `models_path` CLI argument.
 
-The bot will create a `models.json` file in the models path, containing an entry for each `.ckpt` file. This is where you can set a custom name, description, sample_rate, and chunk_size for each individual model file.
+The bot will create a `models.json` file in the models path, containing an entry for each `.ckpt` file in the models path. This is where you can set a custom name, description, sample_rate, and chunk_size for each individual model file.
 
 An example `models.json` can be seen here:
 
@@ -54,8 +54,6 @@ An example `models.json` can be seen here:
 ```
 
 By default, generated audio is saved in a `outputs_from_discord_bot` folder. You can set a custom output path using the `--output_path` argument.
-
-By default, the maximum size of the request queue is 10. After this, users will be told the queue is full instead of their requests being added. You can set a custom maximum using the `--max_queue_size` argument.
 
 ## Starting the bot
 
