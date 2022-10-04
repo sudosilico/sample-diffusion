@@ -81,4 +81,31 @@ The bot provides the following slash command:
 | --- | --- | --- | --- |
 | --models_path | str | "models" | Path to the folder containing your models |
 | --output_path | str | "outputs_from_discord_bot" | Path to the folder where generated audio will be saved |
-| --max_queue_size | int | 10 | Maximum number of requests that can be queued at once |
+| --config_path | str | "bot_config.ini" | Path to the config file |
+
+## Bot configuration
+
+Here is an example `bot_config.ini` file that may be used:
+
+```ini
+[DEFAULT]
+max_queue_size = 10
+max_samples = 3
+max_steps = 250
+
+[admin]
+max_queue_size = 500
+max_samples = 10
+max_steps = 500
+```
+
+You can also create a category for individual discord users, using the `[user:<discord id>]` form:
+
+```ini
+[user:123456578987654321]
+max_queue_size = 20
+```
+
+If a category does not contain a certain config value, the value under `[DEFAULT]` will be used. This also applies to user-specific configs; `[DEFAULT]` will be used over `[user:...]` even when that user is an admin. 
+
+`[admin]` is used when the user is an admin but does not have a user-specific config category.
