@@ -104,6 +104,4 @@ You can also create a category for individual discord users, using the `[user:<d
 max_queue_size = 20
 ```
 
-If a category does not contain a certain config value, the value under `[DEFAULT]` will be used. This also applies to user-specific configs; `[DEFAULT]` will be used over `[user:...]` even when that user is an admin. 
-
-`[admin]` is used when the user is an admin but does not have a user-specific config category.
+If a category does not contain a certain config value, the value under `[DEFAULT]` will be used. This also applies to user-specific configs; `[DEFAULT]` will be used as a fallback for `[user:id]` over `[admin]` even when that user is an admin. 
