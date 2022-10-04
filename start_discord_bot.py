@@ -1,4 +1,5 @@
 import os, argparse
+import configparser
 from dotenv import load_dotenv
 from discord_bot.bot import start_discord_bot
 
@@ -6,8 +7,9 @@ from discord_bot.bot import start_discord_bot
 def main():
     token = load_env_vars()
     args = parse_cli_args()
+    config = load_config(args.config_path)
 
-    start_discord_bot(token, args)
+    start_discord_bot(token, args, config)
 
 
 def load_env_vars():
@@ -40,13 +42,27 @@ def parse_cli_args():
         help="path to the outputs folder",
     )
     parser.add_argument(
-        "--max_queue_size",
-        type=int,
-        default=10,
-        help="the maximum size of the request queue",
+        "--config_path",
+        type=str,
+        default="bot_config.ini",
+        help="the path to the bot config file",
     )
 
     return parser.parse_args()
+
+
+def load_config(config_path):
+    config = configparser.ConfigParser()
+
+    if not os.path.exists(config_path):
+        print(
+            "Error: Config file 'config.ini' was not found. Ensure you are running the script from the root directory."
+        )
+        exit(1)
+
+    config.read(config_path)
+
+    return config
 
 
 if __name__ == "__main__":

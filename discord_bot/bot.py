@@ -13,12 +13,11 @@ from sample_diffusion.model import (
 )
 
 
-def start_discord_bot(token, args):
+def start_discord_bot(token, args, config):
     models_path = args.models_path
     output_path = args.output_path
-    max_queue_size = args.max_queue_size
 
-    bot = DanceDiffusionDiscordBot(output_path, models_path, max_queue_size)
+    bot = DanceDiffusionDiscordBot(output_path, models_path, config)
 
     print("Starting discord bot...")
     bot.start(token)
@@ -96,15 +95,15 @@ def load_models_path(models_path):
 
 
 class DanceDiffusionDiscordBot:
-    def __init__(self, output_path, models_path, max_queue_size):
+    def __init__(self, output_path, models_path, config):
         self.output_path = output_path
         self.models_path = models_path
+        self.config = config
 
         ckpt_paths, models_metadata = load_models_path(models_path)
         self.ckpt_paths = ckpt_paths
         self.models_metadata = models_metadata
 
-        self.max_queue_size = max_queue_size
         self.ckpt = None
 
         self.discord_loop = asyncio.new_event_loop()
@@ -122,6 +121,7 @@ class DanceDiffusionDiscordBot:
         async def on_ready():
             print(f"{bot.user} has connected!")
 
+        
         @bot.slash_command()
         async def generate(
             ctx,
@@ -131,10 +131,18 @@ class DanceDiffusionDiscordBot:
                 autocomplete=get_ckpt_paths,
             ),
             seed: discord.Option(
-                int, "The random seed. Use -1 or leave this out for a random seed."
+                int, 
+                "The random seed. Use -1 or leave this out for a random seed.",
+                default=-1
             ) = -1,
-            samples: discord.Option(int, "The number of samples to generate.") = 1,
-            steps: discord.Option(int, "The number of steps to perform.") = 25,
+            samples: discord.Option(
+                int,
+                "The number of samples to generate.",
+                min_value=1,
+                max_value=10,
+                default=1,
+            ) = 1,
+            steps: discord.Option(int, "The number of steps to perform.", min_value=1, max_value=self.config.get('admin', 'max_steps'), default=25) = 25,
         ):
 
             model_exists = os.path.exists(os.path.join(self.models_path, model))
@@ -147,12 +155,42 @@ class DanceDiffusionDiscordBot:
 
             use_seed = seed if seed != -1 else torch.seed()
 
-            class GeneratorRequest(object):
-                pass
+            is_admin = ctx.author.guild_permissions.administrator
+            config_category = "admin" if is_admin else "DEFAULT"
 
-            if len(self.processing_tasks) >= self.max_queue_size:
+            def get_config(key, default=None):
+                user_category = f"user:{ctx.author.id}"
+
+                if user_category in self.config:
+                    if key in self.config[user_category]:
+                        val = self.config[user_category][key]
+                        return default if (val is None) else int(val)
+
+                config_value = self.config.get(config_category, key)
+
+                return default if (config_value is None) else int(config_value)
+
+            # Validate max queue size
+            max_queue_size = get_config("max_queue_size", 10)
+            if len(self.processing_tasks) >= max_queue_size:
                 await ctx.respond(
                     content=f"{ctx.author.mention} The queue is currently full. Please try again later."
+                )
+                return
+
+            # Validate max samples
+            max_samples = get_config("max_samples", 3)
+            if samples > max_samples:
+                await ctx.respond(
+                    content=f"{ctx.author.mention} You may only generate up to {max_samples} samples at a time."
+                )
+                return
+
+            # Validate max steps
+            max_steps = get_config("max_steps", 25)
+            if steps > max_steps:
+                await ctx.respond(
+                    content=f"{ctx.author.mention} You may only generate up to {max_steps} steps at a time."
                 )
                 return
 
@@ -178,12 +216,14 @@ class DanceDiffusionDiscordBot:
 
             discord_loop = self.discord_loop
 
-            request = GeneratorRequest()
-
             def oncompleted(sample_paths, req, seed):
                 coroutine = on_completed(sample_paths, req, seed)
                 discord_loop.create_task(coroutine)
 
+            class GeneratorRequest(object):
+                pass
+
+            request = GeneratorRequest()
             request.seed = use_seed
             request.samples = samples
             request.steps = steps
