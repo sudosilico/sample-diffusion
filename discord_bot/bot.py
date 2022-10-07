@@ -157,7 +157,12 @@ class DanceDiffusionDiscordBot:
 
             use_seed = seed if seed != -1 else torch.seed()
 
-            is_admin = ctx.author.guild_permissions.administrator
+            is_admin = False
+
+            if ctx.guild is not None:
+                if ctx.author.guild_permissions.administrator:
+                    is_admin = True
+
             config_category = "admin" if is_admin else "DEFAULT"
 
             def get_config(key, default=None):

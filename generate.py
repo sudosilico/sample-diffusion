@@ -16,7 +16,17 @@ def main():
     start_time = time.process_time()
 
     for batch in range(args.n_batches):
-        perform_batch(args, model_info, seed + batch, batch)
+        audio_out, seed = perform_batch(args, model_info, seed + batch)
+
+        if args.remove_dc_offset:
+            print("Filtering DC offset...")
+            audio_out = remove_dc_offset(audio_out, args.sr)
+
+        if args.normalize:
+            print("Normalizing...")
+            audio_out = normalize_audio(audio_out)
+
+        save_audio(audio_out, args, seed, batch)
 
     end_time = time.process_time()
     elapsed = end_time - start_time
@@ -26,9 +36,17 @@ def main():
     )
 
 
-def perform_batch(args, model_info, seed, batch):
+def remove_dc_offset(audio_out, sample_rate):
+    return torchaudio.functional.highpass_biquad(audio_out, sample_rate, 15, 0.707)
+
+
+def normalize_audio(audio_out):
+    return audio_out / torch.max(torch.abs(audio_out))
+
+
+def perform_batch(args, model_info, seed):
     if args.input:
-        audio_out, seed = process_audio(
+        return process_audio(
             args.input,
             args.input_sr,
             args.sample_length_multiplier,
@@ -38,10 +56,8 @@ def perform_batch(args, model_info, seed, batch):
             args.n_steps,
             model_info,
         )
-        save_audio(audio_out, args, seed, batch)
-    else:
-        audio_out, seed = generate_audio(seed, args.n_samples, args.n_steps, model_info)
-        save_audio(audio_out, args, seed, batch)
+
+    return generate_audio(seed, args.n_samples, args.n_steps, model_info)
 
 
 def save_audio(audio_out, args, seed, batch):
@@ -104,62 +120,101 @@ def parse_cli_args():
     # args for model
     parser.add_argument(
         "--ckpt",
+        metavar="CHECKPOINT",
         type=str,
         default="models/model.ckpt",
-        help="path to the model to be used",
+        help="path to the model checkpoint file to be used (default: models/model.ckpt)",
     )
     parser.add_argument(
-        "--spc", type=int, default=65536, help="the samples per chunk of the model"
+        "--spc", 
+        metavar="SAMPLES_PER_CHUNK",
+        type=int, 
+        default=65536, 
+        help="the samples per chunk of the model (default: 65536)"
     )
     parser.add_argument(
-        "--sr", type=int, default=48000, help="the samplerate of the model"
+        "--sr", 
+        metavar="SAMPLE_RATE",
+        type=int, 
+        default=48000, 
+        help="the samplerate of the model (default: 48000)"
     )
 
     # args for generation
     parser.add_argument(
         "--out_path",
+        metavar="OUTPUT_PATH",
         type=str,
         default="audio_out",
-        help="path to the folder for the samples to be saved in",
+        help="The path to the folder for the samples to be saved in (default: audio_out)",
     )
     parser.add_argument(
         "--sample_length_multiplier",
+        metavar="LENGTH",
         type=int,
         default=1,
-        help="sample length multiplier for audio2audio",
+        help="The sample length multiplier for audio2audio (default: 1)",
     )
     parser.add_argument(
         "--input_sr",
+        metavar="SAMPLE_RATE",
         type=int,
         default=44100,
-        help="samplerate of the input audio specified in --input",
+        help="The sample rate of the input audio file specified in --input (default: 44100)",
     )
     parser.add_argument(
-        "--noise_level", type=float, default=0.7, help="noise level for audio2audio"
+        "--noise_level", 
+        metavar="NOISE_LEVEL",
+        type=float, 
+        default=0.7, 
+        help="The noise level for audio2audio (default: 0.7)"
     )
     parser.add_argument(
-        "--n_steps", type=int, default=25, help="number of sampling steps"
+        "--n_steps", 
+        metavar="STEPS",
+        type=int, 
+        default=25, 
+        help="The number of sampling steps (default: 25)"
     )
     parser.add_argument(
         "--n_samples",
+        metavar="SAMPLES",
         type=int,
         default=1,
-        help="how many samples to generate per batch",
+        help="The number of samples to generate per batch (default: 1)",
     )
     parser.add_argument(
         "--n_batches",
+        metavar="BATCHES",
         type=int,
         default=1,
-        help="how many batches of samples to generate",
+        help="The number of sample batches to generate (default: 1)",
     )
     parser.add_argument(
-        "--seed", type=int, default=-1, help="the seed (for reproducible sampling)"
+        "--seed", 
+        metavar="SEED",
+        type=int, 
+        default=-1, 
+        help="The random seed (default: -1)"
     )
     parser.add_argument(
         "--input",
+        metavar="INPUT",
         type=str,
         default="",
-        help="path to the audio to be used for audio2audio",
+        help="Path to the audio to be used for audio2audio. If omitted, audio will be generated using random noise.",
+    )
+    parser.add_argument(
+        "--remove_dc_offset",
+        action="store_true",
+        default=False,
+        help="When this flag is set, a high pass filter will be applied to the input audio to remove DC offset.",
+    )
+    parser.add_argument(
+        "--normalize",
+        action="store_true",
+        default=False,
+        help="When this flag is set, output audio samples will be normalized.",
     )
 
     return parser.parse_args()

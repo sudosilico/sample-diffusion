@@ -3,6 +3,7 @@ import gc
 import torchaudio
 import torch
 from diffusion import sampling
+from einops import rearrange
 from audio_diffusion.utils import Stereo, PadCrop
 from pytorch_lightning import seed_everything
 
@@ -47,6 +48,7 @@ def process_audio(
         audio_in,
         noise_level,
         sample_length_multiplier,
+        sample_rate,
         callback,
     )
 
@@ -73,8 +75,12 @@ def audio2audio(
     audio_input,
     noise_level,
     sample_length_multiplier,
+    sample_rate,
     callback=None,
 ):
+    input_length_samples = audio_input.shape[-1]
+    print(f"Input length: {input_length_samples} samples")
+
     effective_length = model_info.chunk_size * sample_length_multiplier
 
     torch.cuda.empty_cache()
