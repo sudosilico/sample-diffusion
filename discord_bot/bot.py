@@ -6,12 +6,7 @@ import discord
 import asyncio
 import os
 from sample_diffusion.inference import generate_audio
-from sample_diffusion.model import (
-    ModelInfo,
-    get_torch_device_type,
-    instantiate_model,
-    load_state_from_checkpoint,
-)
+from sample_diffusion.model import Model
 
 
 def start_discord_bot(token, args, config):
@@ -288,32 +283,18 @@ class DanceDiffusionDiscordBot:
         chunk_size = request.chunk_size
         ckpt = request.ckpt
 
+        print(f"Processing request for {ckpt}...")
+
+        print("instanciating model...")
+        model = Model(chunk_size, sample_rate)
+            
         print("loading model...")
+        model.load(ckpt, chunk_size, sample_rate)
 
-        if self.ckpt == None:
-            device_type = get_torch_device_type()
-            device = torch.device(device_type)
-
-            model_ph = instantiate_model(chunk_size, sample_rate)
-            model = load_state_from_checkpoint(device, model_ph, ckpt)
-
-            self.sample_rate = sample_rate
-            self.model_info = ModelInfo(model, device, chunk_size)
-            self.ckpt = ckpt
-            print(f"Model loaded: '{ckpt}'")
-        else:
-            self.sample_rate = sample_rate
-
-            if self.ckpt == ckpt:
-                print(f"Model already loaded: '{ckpt}'.")
-            else:
-                self.model = self.model_info.switch_models(
-                    ckpt, sample_rate, chunk_size
-                )
-                self.ckpt = ckpt
-                print(f"Model loaded: '{ckpt}'")
-
-        audio_out, seed = generate_audio(request.seed, samples, steps, self.model_info)
+        self.model = model
+        self.ckpt = ckpt
+            
+        audio_out, seed = generate_audio(request.seed, samples, steps, self.model)
         samples_output_path = os.path.join(self.output_path, f"{seed}_{steps}")
 
         if not os.path.exists(samples_output_path):
@@ -326,7 +307,7 @@ class DanceDiffusionDiscordBot:
             output_file = os.path.join(samples_output_path, f"sample_{ix + 1}.wav")
             open(output_file, "a").close()
             output = sample.cpu()
-            torchaudio.save(output_file, output, self.sample_rate)
+            torchaudio.save(output_file, output, sample_rate)
             sample_paths.append(output_file)
 
         print("Saved audio samples to:")

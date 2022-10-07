@@ -3,9 +3,9 @@ import gc
 import torchaudio
 import torch
 from diffusion import sampling
-from einops import rearrange
 from audio_diffusion.utils import Stereo, PadCrop
 from pytorch_lightning import seed_everything
+from sample_diffusion.model import Model
 
 
 def set_seed(new_seed):
@@ -18,10 +18,10 @@ def set_seed(new_seed):
     return seed
 
 
-def generate_audio(seed, samples, steps, model_info, callback=None):
+def generate_audio(seed, samples, steps, model: Model, callback=None):
     seed = set_seed(seed)
 
-    audio_out = rand2audio(model_info, samples, steps, callback)
+    audio_out = rand2audio(model, samples, steps, callback)
 
     return audio_out, seed
 
@@ -34,15 +34,15 @@ def process_audio(
     seed,
     samples,
     steps,
-    model_info,
+    model: Model,
     callback=None,
 ):
     seed = set_seed(seed)
 
-    audio_in = load_to_device(model_info.device, input_path, sample_rate)
+    audio_in = load_to_device(model.device, input_path, sample_rate)
 
     audio_out = audio2audio(
-        model_info,
+        model,
         samples,
         steps,
         audio_in,
@@ -55,21 +55,21 @@ def process_audio(
     return audio_out, seed
 
 
-def rand2audio(model_info, batch_size, n_steps, callback=None):
+def rand2audio(model: Model, batch_size: int, n_steps: int, callback=None):
     torch.cuda.empty_cache()
     gc.collect()
 
-    noise = torch.randn([batch_size, 2, model_info.chunk_size]).to(model_info.device)
-    t = torch.linspace(1, 0, n_steps + 1, device=model_info.device)[:-1]
+    noise = torch.randn([batch_size, 2, model.chunk_size]).to(model.device)
+    t = torch.linspace(1, 0, n_steps + 1, device=model.device)[:-1]
     step_list = get_crash_schedule(t)
 
     return sampling.iplms_sample(
-        model_info.model.diffusion_ema, noise, step_list, {}, callback=callback
+        model.diffusion_ema, noise, step_list, {}, callback=callback
     ).clamp(-1, 1)
 
 
 def audio2audio(
-    model_info,
+    model: Model,
     batch_size,
     n_steps,
     audio_input,
@@ -81,7 +81,7 @@ def audio2audio(
     input_length_samples = audio_input.shape[-1]
     print(f"Input length: {input_length_samples} samples")
 
-    effective_length = model_info.chunk_size * sample_length_multiplier
+    effective_length = model.chunk_size * sample_length_multiplier
 
     torch.cuda.empty_cache()
     gc.collect()
@@ -89,16 +89,16 @@ def audio2audio(
     augs = torch.nn.Sequential(PadCrop(effective_length, randomize=True), Stereo())
     audio = augs(audio_input).unsqueeze(0).repeat([batch_size, 1, 1])
 
-    t = torch.linspace(0, 1, n_steps + 1, device=model_info.device)
+    t = torch.linspace(0, 1, n_steps + 1, device=model.device)
     step_list = get_crash_schedule(t)
     step_list = step_list[step_list < noise_level]
 
     alpha, sigma = t_to_alpha_sigma(step_list[-1])
-    noise = torch.randn([batch_size, 2, effective_length], device=model_info.device)
+    noise = torch.randn([batch_size, 2, effective_length], device=model.device)
     noised_audio = audio * alpha + noise * sigma
 
     return sampling.iplms_sample(
-        model_info.model.diffusion_ema,
+        model.diffusion_ema,
         noised_audio,
         step_list.flip(0)[:-1],
         {},

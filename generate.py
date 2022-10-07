@@ -3,7 +3,7 @@ import torchaudio
 import torch
 import json
 import time
-from sample_diffusion.model import load_model
+from sample_diffusion.model import Model, load_model
 from sample_diffusion.inference import generate_audio, process_audio
 
 
@@ -11,6 +11,7 @@ def main():
     args = parse_cli_args()
 
     model_info = load_model(args)
+
     seed = args.seed if args.seed != -1 else torch.seed()
 
     start_time = time.process_time()
@@ -44,7 +45,7 @@ def normalize_audio(audio_out):
     return audio_out / torch.max(torch.abs(audio_out))
 
 
-def perform_batch(args, model_info, seed):
+def perform_batch(args, model: Model, seed):
     if args.input:
         return process_audio(
             args.input,
@@ -54,10 +55,10 @@ def perform_batch(args, model_info, seed):
             seed,
             args.n_samples,
             args.n_steps,
-            model_info,
+            model,
         )
 
-    return generate_audio(seed, args.n_samples, args.n_steps, model_info)
+    return generate_audio(seed, args.n_samples, args.n_steps, model)
 
 
 def save_audio(audio_out, args, seed, batch):
