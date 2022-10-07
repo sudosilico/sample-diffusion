@@ -19,7 +19,12 @@ def main():
         audio_out, seed = perform_batch(args, model_info, seed + batch)
 
         if args.remove_dc_offset:
+            print("Filtering DC offset...")
             audio_out = remove_dc_offset(audio_out, args.sr)
+
+        if args.normalize:
+            print("Normalizing...")
+            audio_out = normalize_audio(audio_out)
 
         save_audio(audio_out, args, seed, batch)
 
@@ -32,8 +37,11 @@ def main():
 
 
 def remove_dc_offset(audio_out, sample_rate):
-    highpass = torchaudio.transforms.HighPassBiquad(sample_rate, 20)
-    return highpass(audio_out)
+    return torchaudio.functional.highpass_biquad(audio_out, sample_rate, 15, 0.707)
+
+
+def normalize_audio(audio_out):
+    return audio_out / torch.max(torch.abs(audio_out))
 
 
 def perform_batch(args, model_info, seed):
@@ -200,7 +208,13 @@ def parse_cli_args():
         "--remove_dc_offset",
         action="store_true",
         default=False,
-        help="When this flag is set, A high pass filter will be applied to the input audio to remove DC offset.",
+        help="When this flag is set, a high pass filter will be applied to the input audio to remove DC offset.",
+    )
+    parser.add_argument(
+        "--normalize",
+        action="store_true",
+        default=False,
+        help="When this flag is set, output audio samples will be normalized.",
     )
 
     return parser.parse_args()
