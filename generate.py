@@ -3,29 +3,31 @@ import torchaudio
 import torch
 import json
 import time
-from sample_diffusion.model import Model, load_model
-from sample_diffusion.inference import generate_audio, process_audio
+from sample_diffusion.model import Model
+from sample_diffusion.post_process import post_process_audio
 
 
 def main():
     args = parse_cli_args()
 
-    model_info = load_model(args)
-
-    seed = args.seed if args.seed != -1 else torch.seed()
+    model = Model(force_cpu=args.force_cpu)
+    model.load(
+        model_path=args.ckpt,
+        chunk_size=args.spc,
+        sample_rate=args.sr,
+    )
 
     start_time = time.process_time()
 
     for batch in range(args.n_batches):
-        audio_out, seed = perform_batch(args, model_info, seed + batch)
+        audio_out, seed = perform_batch(model, args.seed + batch, args)
 
-        if args.remove_dc_offset:
-            print("Filtering DC offset...")
-            audio_out = remove_dc_offset(audio_out, args.sr)
-
-        if args.normalize:
-            print("Normalizing...")
-            audio_out = normalize_audio(audio_out)
+        audio_out = post_process_audio(
+            audio_out, 
+            sample_rate=args.sr, 
+            remove_dc_offset=args.remove_dc_offset, 
+            normalize=args.normalize
+        )
 
         save_audio(audio_out, args, seed, batch)
 
@@ -37,28 +39,22 @@ def main():
     )
 
 
-def remove_dc_offset(audio_out, sample_rate):
-    return torchaudio.functional.highpass_biquad(audio_out, sample_rate, 15, 0.707)
-
-
-def normalize_audio(audio_out):
-    return audio_out / torch.max(torch.abs(audio_out))
-
-
-def perform_batch(args, model: Model, seed):
+def perform_batch(model: Model, seed, args):
     if args.input:
-        return process_audio(
-            args.input,
-            args.input_sr,
-            args.sample_length_multiplier,
-            args.noise_level,
-            seed,
-            args.n_samples,
-            args.n_steps,
-            model,
+        return model.process_audio_file(
+            audio_path=args.input,
+            noise_level=args.noise_level,
+            length_multiplier=args.length_multiplier,
+            seed=seed,
+            samples=args.n_samples,
+            steps=args.n_steps,
         )
 
-    return generate_audio(seed, args.n_samples, args.n_steps, model)
+    return model.generate(
+        seed=seed,
+        samples=args.n_samples,
+        steps=args.n_steps,
+    )
 
 
 def save_audio(audio_out, args, seed, batch):
@@ -73,6 +69,7 @@ def save_audio(audio_out, args, seed, batch):
         output_file = os.path.join(output_path, f"sample_{ix + 1}.wav")
         open(output_file, "a").close()
         output = sample.cpu()
+
         torchaudio.save(output_file, output, args.sr)
 
     if args.n_batches > 1:
@@ -150,10 +147,10 @@ def parse_cli_args():
         help="The path to the folder for the samples to be saved in (default: audio_out)",
     )
     parser.add_argument(
-        "--sample_length_multiplier",
+        "--length_multiplier",
         metavar="LENGTH",
         type=int,
-        default=1,
+        default=-1,
         help="The sample length multiplier for audio2audio (default: 1)",
     )
     parser.add_argument(
@@ -205,6 +202,8 @@ def parse_cli_args():
         default="",
         help="Path to the audio to be used for audio2audio. If omitted, audio will be generated using random noise.",
     )
+
+    # audio post-processing arguments
     parser.add_argument(
         "--remove_dc_offset",
         action="store_true",
@@ -216,6 +215,13 @@ def parse_cli_args():
         action="store_true",
         default=False,
         help="When this flag is set, output audio samples will be normalized.",
+    )
+
+    parser.add_argument(
+        "--force_cpu",
+        action="store_true",
+        default=False,
+        help="When this flag is set, processing will be done on the CPU.",
     )
 
     return parser.parse_args()

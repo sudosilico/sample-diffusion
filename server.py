@@ -103,7 +103,7 @@ def parse_cli_args():
 
     # args for generation
     parser.add_argument(
-        "--sample_length_multiplier",
+        "--length_multiplier",
         type=int,
         default=1,
         help="sample length multiplier for audio2audio",

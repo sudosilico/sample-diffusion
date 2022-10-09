@@ -5,7 +5,6 @@ import torchaudio
 import discord
 import asyncio
 import os
-from sample_diffusion.inference import generate_audio
 from sample_diffusion.model import Model
 
 

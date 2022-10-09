@@ -93,7 +93,7 @@ When generating multiple batches, the first batch will use the passed seed (or a
 | --spc                      | int   | 65536               | the samples per chunk of the model                 |
 | --sr                       | int   | 48000               | the samplerate of the model                        |
 | --out_path                 | str   | "audio_out"         | path to the folder for the samples to be saved in  |
-| --sample_length_multiplier | int   | 1                   | sample length multiplier for audio2audio           |
+| --length_multiplier | int   | 1                   | sample length multiplier for audio2audio           |
 | --input_sr                 | int   | 44100               | samplerate of the input audio specified in --input |
 | --noise_level              | float | 0.7                 | noise level for audio2audio                        |
 | --n_steps                  | int   | 25                  | number of sampling steps                           |
