@@ -1,28 +1,28 @@
+from math import ceil
+import os
 import torch
+import torchaudio
 from torch import nn
 from audio_diffusion.models import DiffusionAttnUnet1D
-
+from sample_diffusion.inference import audio2audio, rand2audio
 from sample_diffusion.platform import get_torch_device_type
+from pytorch_lightning import seed_everything
 
-# def instantiate_model(chunk_size: int, sample_rate: int) -> DiffusionInference:
-#     return DiffusionInference(
-#         sample_size=chunk_size,
-#         sample_Rate=sample_rate,
-#         latent_dim=0,
-#     )
 
-# def load_state_from_checkpoint(device, model, checkpoint_path):
-#     model.load_state_dict(torch.load(checkpoint_path, map_location=device)["state_dict"], strict=False)
-#     return model.requires_grad_(False).to(device)
+class GlobalArgs(object):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
+class DiffusionInference(nn.Module):
+    def __init__(self, **kwargs):
+        super().__init__()
+
+        self.diffusion_ema = DiffusionAttnUnet1D(GlobalArgs(**kwargs), n_attn_layers=4)
+        self.rng = torch.quasirandom.SobolEngine(1, scramble=True)
+
 
 class Model:
-    class DiffusionInference(nn.Module):
-        def __init__(self, **kwargs):
-            super().__init__()
-
-            self.diffusion_ema = DiffusionAttnUnet1D(**kwargs, n_attn_layers=4)
-            self.rng = torch.quasirandom.SobolEngine(1, scramble=True)
-    
     _module: DiffusionInference = None
     _device_type: str = None
     device: torch.device = None
@@ -30,95 +30,107 @@ class Model:
     chunk_size: int = 65536
     sample_rate: int = 48000
 
-    def __init__(self, chunk_size:int = 65535, sample_rate:int = 48000, device_type:str=None):
-        print("init model")
-        self.chunk_size = chunk_size
-        self.sample_rate = sample_rate
-        self._device_type = device_type
-
-        if self._device_type is None:
+    def __init__(
+        self,
+        force_cpu: bool = False,
+    ):
+        if force_cpu:
+            self._device_type = "cpu"
+        else:
             self._device_type = get_torch_device_type()
 
-        print("device type", self._device_type)
-
-        print("init model 2")
         self.device = torch.device(self._device_type)
-
-        print("init model 3")
-        self._module = Model.DiffusionInference(
-            sample_size=self.chunk_size,
-            sample_rate=self.sample_rate,
-            latent_dim=0,
-        )
-
-        print("init model 4")
 
     def load(self, model_path, chunk_size=65536, sample_rate=48000):
         if self.model_path == model_path:
             return
 
-        if (self.chunk_size != chunk_size) or (self.sample_rate != sample_rate):
-            self._module = Model.DiffusionInference(
-                sample_size=chunk_size,
-                sample_rate=sample_rate,
-                latent_dim=0,
-            )
+        self._module = DiffusionInference(
+            sample_size=chunk_size,
+            sample_rate=sample_rate,
+            latent_dim=0,
+        )
 
         self.model_path = model_path
-        self._module.load_state_dict(torch.load(model_path, map_location=self.device)["state_dict"], strict=False)
+        
+        self._module.load_state_dict(
+            torch.load(model_path, map_location=self.device)["state_dict"], strict=False
+        )
+
         self._module = self._module.requires_grad_(False).to(self.device)
 
     @property
-    def diffusion_ema(self):
+    def diffusion(self):
+        if self._module is None:
+            raise RuntimeError("Model not loaded.")
+
         return self._module.diffusion_ema
 
-# class ModelInfo:
-#     def __init__(self, model, device, chunk_size):
-#         self.model = model
-#         self.device = device
-#         self.chunk_size = chunk_size
+    def generate(
+        self, seed: int = -1, samples: int = 1, steps: int = 25, callback=None
+    ):
+        """Generates new unconditional audio samples."""
 
-#     def switch_models(self, ckpt="models/model.ckpt", sample_rate=48000, chunk_size=65536):
-#         device_type = get_torch_device_type()
-#         device = torch.device(device_type)
+        seed = self.seed(seed)
+        audio_out = rand2audio(self, samples, steps, callback)
 
-#         model_ph = instantiate_model(chunk_size, sample_rate)
-#         model = load_state_from_checkpoint(device, model_ph, ckpt)
+        return audio_out, seed
 
-#         self.model = model
-#         self.device = device
-#         self.chunk_size = chunk_size
-        
-# def get_torch_device_type():
-#     if is_mps_available():
-#         return "mps"
+    def process_audio_file(
+        self,
+        audio_path: str,
+        noise_level: float = 0.7,
+        length_multiplier: int = -1,
+        seed: int = -1,
+        samples: int = 1,
+        steps: int = 25,
+        callback=None,
+    ):
+        """Generate new audio samples from a given audio file path."""
 
-#     if torch.cuda.is_available():
-#         return "cuda"
+        audio_in = self._load_audio_file(audio_path)
 
-#     return "cpu"
+        # The sample length, in multiples of self.chunk_size. Will use the largest that fits all of the audio if not specified or -1 used.
+        length = (
+            length_multiplier
+            if length_multiplier != -1
+            else (ceil(audio_in.shape[-1] / float(self.chunk_size)))
+        )
 
-# def is_mps_available():
-#     try:
-#         return torch.backends.mps.is_available()
-#     except:
-#         return False
+        seed = self.seed(seed)
+        audio_out = audio2audio(
+            self, samples, steps, audio_in, noise_level, length, callback
+        )
 
+        return audio_out, seed
 
-# def load_model(model_args):
-#     chunk_size = model_args.spc
-#     sample_rate = model_args.sr
-#     ckpt = model_args.ckpt
+    def _load_audio_file(self, audio_path: str):
+        if self.device is None:
+            raise RuntimeError("Model not loaded.")
 
-#     device_type = get_torch_device_type()
-#     device = torch.device(device_type)
+        if not os.path.exists(audio_path):
+            raise RuntimeError(f"Audio file not found: {audio_path}")
 
-#     model_ph = instantiate_model(chunk_size, sample_rate)
-#     model = load_state_from_checkpoint(device, model_ph, ckpt)
+        audio, file_sample_rate = torchaudio.load(audio_path)
 
-#     return ModelInfo(model, device, chunk_size)
+        # Resample the audio to the model's sample rate if necessary.
+        if file_sample_rate != self.sample_rate:
+            resampler = torchaudio.transforms.Resample(
+                file_sample_rate, self.sample_rate
+            )
+            audio = resampler(audio)
 
+        return audio.to(self.device)
 
-# def load_state_from_checkpoint(device, model, checkpoint_path):
-#     model.load_state_dict(torch.load(checkpoint_path, map_location=device)["state_dict"], strict=False)
-#     return model.requires_grad_(False).to(device)
+    def seed(self, seed):
+        """
+            Sets the preferred seed for the model, returning the seed that will be used. 
+            If -1 is passed in, a random seed will be used.
+            If the passed seed is too large, it will be modulo'd by the maximum seed value.
+        """
+
+        seed = seed if seed != -1 else torch.seed()
+        seed = seed % 4294967295
+        seed_everything(seed)
+        self.current_seed = seed
+        return seed
