@@ -235,7 +235,7 @@ def parse_cli_args():
         "--open",
         action="store_true",
         default=False,
-        help="when this flag is used, the bot will open the output folder after generation",
+        help="When this flag is set, the containing folder will be opened once your samples are saved.",
     )
 
 

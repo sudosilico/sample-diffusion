@@ -108,7 +108,7 @@ When generating multiple batches, the first batch will use the passed seed (or a
 | --remove_dc_offset         | flag  | False               | When this flag is set, a high pass filter will be applied to the input audio to remove DC offset. |
 | --normalize                | flag  | False               | When this flag is set, output audio samples will be normalized. |
 | --force_cpu                | flag  | False               | When this flag is set, processing will be done on the CPU. |
-| --open                    | flag  | False               | When this flag is set, the containing folder will be opened once your samples are saved. |
+| --open                    | flag  | False                | When this flag is set, the containing folder will be opened once your samples are saved. |
 
 ## Using the model trimming script
 
