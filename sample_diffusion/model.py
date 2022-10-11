@@ -50,6 +50,8 @@ class Model:
             sample_rate=sample_rate,
             latent_dim=0,
         )
+        self.chunk_size = chunk_size
+        self.sample_rate = sample_rate
 
         self.model_path = model_path
         
