@@ -1,87 +1,113 @@
+from contextlib import nullcontext
 import math
 import gc
-import torchaudio
 import torch
-from diffusion import sampling
-from einops import rearrange
 from audio_diffusion.utils import Stereo, PadCrop
-from pytorch_lightning import seed_everything
+from tqdm.auto import trange
+from sample_diffusion.platform import get_torch_device_type
+
+from diffusion import utils
+import sys
+
+def make_eps_model_fn(model):
+    def eps_model_fn(x, t, **extra_args):
+        alphas, sigmas = utils.t_to_alpha_sigma(t)
+        v = model(x, t, **extra_args)
+        eps = x * utils.append_dims(sigmas, x.ndim) + v * utils.append_dims(alphas, x.ndim)
+        return eps
+    return eps_model_fn
 
 
-def set_seed(new_seed):
-    if new_seed != -1:
-        seed = new_seed
+def make_autocast_model_fn(model):
+    def autocast_model_fn(*args, **kwargs):
+        device = get_torch_device_type()
+        precision_scope = torch.autocast
+        if device in ['mps', 'cpu']:
+            precision_scope = nullcontext
+        with precision_scope(device):
+            m = model(*args, **kwargs).float() 
+            return m
+    return autocast_model_fn
+
+
+def transfer(x, eps, t_1, t_2):
+    alphas, sigmas = utils.t_to_alpha_sigma(t_1)
+    next_alphas, next_sigmas = utils.t_to_alpha_sigma(t_2)
+
+    # Fix for apple silicon mps
+    # --
+    # On mps, `alphas` (thus, v1) is zero. `pred` divides by zero, resulting in NaNs.
+    # This is a hacky workaround to avoid the division by zero, there should be a more appropriate fix.
+    v0 = utils.append_dims(sigmas, x.ndim)
+    v1 = utils.append_dims(alphas, x.ndim)
+    nonzero = torch.tensor(sys.float_info.epsilon).to(v1.device)
+    pred = (x - eps * v0) / torch.where(v1 == 0, nonzero, v1)
+
+    x = pred * utils.append_dims(next_alphas, x.ndim) + eps * utils.append_dims(next_sigmas, x.ndim)
+    return x, pred
+
+def iplms_step(model, x, old_eps, t_1, t_2, extra_args):
+    eps_model_fn = make_eps_model_fn(model)
+    eps = eps_model_fn(x, t_1, **extra_args)
+    if len(old_eps) == 0:
+        eps_prime = eps
+    elif len(old_eps) == 1:
+        eps_prime = (3/2 * eps - 1/2 * old_eps[-1])
+    elif len(old_eps) == 2:
+        eps_prime = (23/12 * eps - 16/12 * old_eps[-1] + 5/12 * old_eps[-2])
     else:
-        seed = torch.seed()
-    seed = seed % 4294967295
-    seed_everything(seed)
-    return seed
+        eps_prime = (55/24 * eps - 59/24 * old_eps[-1] + 37/24 * old_eps[-2] - 9/24 * old_eps[-3])
+    x_new, _ = transfer(x, eps_prime, t_1, t_2)
+    _, pred = transfer(x, eps, t_1, t_2)
+
+    return x_new, eps, pred
 
 
-def generate_audio(seed, samples, steps, model_info, callback=None):
-    seed = set_seed(seed)
-
-    audio_out = rand2audio(model_info, samples, steps, callback)
-
-    return audio_out, seed
-
-
-def process_audio(
-    input_path,
-    sample_rate,
-    sample_length_multiplier,
-    noise_level,
-    seed,
-    samples,
-    steps,
-    model_info,
-    callback=None,
-):
-    seed = set_seed(seed)
-
-    audio_in = load_to_device(model_info.device, input_path, sample_rate)
-
-    audio_out = audio2audio(
-        model_info,
-        samples,
-        steps,
-        audio_in,
-        noise_level,
-        sample_length_multiplier,
-        sample_rate,
-        callback,
-    )
-
-    return audio_out, seed
+@torch.no_grad()
+def iplms_sample(model, x, steps, extra_args, is_reverse=False, callback=None):
+    """Draws samples from a model given starting noise using fourth order
+    Improved Pseudo Linear Multistep."""
+    ts = x.new_ones([x.shape[0]])
+    model_fn = make_autocast_model_fn(model)
+    if not is_reverse:
+        steps = torch.cat([steps, steps.new_zeros([1])])
+    old_eps = []
+    for i in trange(len(steps) - 1, disable=None):
+        x, eps, pred = iplms_step(model_fn, x, old_eps, steps[i] * ts, steps[i + 1] * ts, extra_args)
+        if len(old_eps) >= 3:
+            old_eps.pop(0)
+        old_eps.append(eps)
+        if callback is not None:
+            callback({'x': x, 'i': i, 't': steps[i], 'pred': pred})
+    return x
 
 
-def rand2audio(model_info, batch_size, n_steps, callback=None):
+def rand2audio(model, batch_size: int = 1, steps: int = 25, callback=None):
     torch.cuda.empty_cache()
     gc.collect()
 
-    noise = torch.randn([batch_size, 2, model_info.chunk_size]).to(model_info.device)
-    t = torch.linspace(1, 0, n_steps + 1, device=model_info.device)[:-1]
+    noise = torch.randn([batch_size, 2, model.chunk_size]).to(model.device, non_blocking=False)
+    t = torch.linspace(1, 0, steps + 1, device=model.device)[:-1]
     step_list = get_crash_schedule(t)
 
-    return sampling.iplms_sample(
-        model_info.model.diffusion_ema, noise, step_list, {}, callback=callback
-    ).clamp(-1, 1)
+    audio_out = iplms_sample(
+        model.diffusion, noise, step_list, {}, callback=callback
+    )
+
+    return audio_out
 
 
 def audio2audio(
-    model_info,
+    model,
     batch_size,
-    n_steps,
+    steps,
     audio_input,
     noise_level,
-    sample_length_multiplier,
-    sample_rate,
+    length_multiplier,
     callback=None,
 ):
-    input_length_samples = audio_input.shape[-1]
-    print(f"Input length: {input_length_samples} samples")
-
-    effective_length = model_info.chunk_size * sample_length_multiplier
+    print("Length multiplier: ", length_multiplier)
+    effective_length = model.chunk_size * length_multiplier
 
     torch.cuda.empty_cache()
     gc.collect()
@@ -89,16 +115,16 @@ def audio2audio(
     augs = torch.nn.Sequential(PadCrop(effective_length, randomize=True), Stereo())
     audio = augs(audio_input).unsqueeze(0).repeat([batch_size, 1, 1])
 
-    t = torch.linspace(0, 1, n_steps + 1, device=model_info.device)
+    t = torch.linspace(0, 1, steps + 1, device=model.device)
     step_list = get_crash_schedule(t)
     step_list = step_list[step_list < noise_level]
 
     alpha, sigma = t_to_alpha_sigma(step_list[-1])
-    noise = torch.randn([batch_size, 2, effective_length], device=model_info.device)
+    noise = torch.randn([batch_size, 2, effective_length], device=model.device)
     noised_audio = audio * alpha + noise * sigma
 
-    return sampling.iplms_sample(
-        model_info.model.diffusion_ema,
+    return iplms_sample(
+        model.diffusion,
         noised_audio,
         step_list.flip(0)[:-1],
         {},
@@ -118,13 +144,3 @@ def alpha_sigma_to_t(alpha, sigma):
 
 def t_to_alpha_sigma(t):
     return torch.cos(t * math.pi / 2), torch.sin(t * math.pi / 2)
-
-
-def load_to_device(device, path, sr):
-    audio, file_sr = torchaudio.load(path)
-    if (sr is not None) and (sr != file_sr):
-        print(
-            f"Resampling from {file_sr} (file sample rate) to {sr} (model sample rate)."
-        )
-        audio = torchaudio.transforms.Resample(file_sr, sr)(audio)
-    return audio.to(device)

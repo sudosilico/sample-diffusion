@@ -1,4 +1,4 @@
-name: sd_backend
+name: dd
 channels:
   - pytorch
   - defaults
@@ -21,5 +21,6 @@ dependencies:
     - flask-socketio
     - py-cord
     - python-dotenv
+    - black
     - git+https://github.com/harmonai-org/sample-generator.git@5e2257ba285408e08b5b9e77fa9cd7791b9e223b#egg=sample-generator
     - git+https://github.com/crowsonkb/v-diffusion-pytorch.git@987f8985e38208345c1959b0ea767a625831cc9b#egg=v-diffusion-pytorch

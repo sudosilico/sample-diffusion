@@ -19,9 +19,9 @@ This repository contains the python project that runs machine learning tasks for
 - [git](https://git-scm.com/downloads) (to clone the repo)
 - [conda](https://docs.conda.io/en/latest/) (to set up the python environment)
 
-`conda` can be installed through [Anaconda](https://www.anaconda.com) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
+`conda` can be installed through [Anaconda](https://www.anaconda.com) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html). To run on an Apple Silicon device, you will need to use a conda installation that includes Apple Silicon support, such as [Miniforge](https://github.com/conda-forge/miniforge).
 
-### Clone the repo
+### Cloning the repo
 
 Clone the repo and `cd` into it:
 
@@ -30,20 +30,24 @@ git clone https://github.com/sudosilico/sample-diffusion
 cd sample-diffusion
 ```
 
-### Set up conda environment
+### Setting up the conda environment
 
 Create the `conda` environment:
 
 ```sh
+# If you're not running on an Apple Silicon machine:
 conda env create -f environment.yml
+
+# For Apple Silicon machines:
+conda env create -f environment-mac.yml
 ```
 
 This may take a few minutes as it will install all the necessary Python dependencies so that they will be available to the CLI script.
 
-While you only need to _create_ the `conda` environment once, you'll need to _activate_ it after creating it and once for each new terminal session so that python can access the dependencies.
+> Note: You must activate the `dd` conda environment after creating it. You can do this by running `conda activate dd` in the terminal. You will need to do this every time you open a new terminal window. Learn more about [conda environments.](https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/environments.html)
 
 ```sh
-conda activate sd_backend
+conda activate dd
 ```
 
 ## Using the `generate.py` CLI
@@ -64,8 +68,8 @@ python generate.py --ckpt models/some-other-model.ckpt
 
 Your audio samples will then be in one of the following folders:
 
-- `audio_out/generations/{seed}_{n_steps}` for generations (rand2audio)
-- `audio_out/variations/{seed}_{n_steps}_{noise_level}` for variations (audio2audio)
+- `audio_out/generations/{seed}_{steps}` for generations (rand2audio)
+- `audio_out/variations/{seed}_{steps}_{noise_level}` for variations (audio2audio)
 
 along with a `meta.json` file containing the arguments, seed, and batch number.
 
@@ -77,10 +81,10 @@ Both of these commands will generate 25 audio samples in total, but the second o
 
 ```sh
 # Generate 25 files, in 1 batch of 25 samples
-python generate.py --n_samples 25
+python generate.py --samples 25
 
 # Generate 25 files, in 5 batches of 5 samples
-python generate.py --n_samples 5 --n_batches 5
+python generate.py --samples 5 --batches 5
 ```
 
 When generating multiple batches, the first batch will use the passed seed (or a random seed if none was passed), and each subsequent batch will increment the seed by one.
@@ -93,14 +97,18 @@ When generating multiple batches, the first batch will use the passed seed (or a
 | --spc                      | int   | 65536               | the samples per chunk of the model                 |
 | --sr                       | int   | 48000               | the samplerate of the model                        |
 | --out_path                 | str   | "audio_out"         | path to the folder for the samples to be saved in  |
-| --sample_length_multiplier | int   | 1                   | sample length multiplier for audio2audio           |
+| --length_multiplier        | int   | 1                   | sample length multiplier for audio2audio           |
 | --input_sr                 | int   | 44100               | samplerate of the input audio specified in --input |
 | --noise_level              | float | 0.7                 | noise level for audio2audio                        |
-| --n_steps                  | int   | 25                  | number of sampling steps                           |
-| --n_samples                | int   | 1                   | how many samples to generate per batch             |
-| --n_batches                | int   | 1                   | how many batches of samples to generate            |
+| --steps                    | int   | 25                  | number of sampling steps                           |
+| --samples                  | int   | 1                   | how many samples to generate per batch             |
+| --batches                  | int   | 1                   | how many batches of samples to generate            |
 | --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
-| --input                    | str   | ""                | path to the audio to be used for audio2audio. if missing or empty, rand2audio will be used.  |
+| --input                    | str   | ""                  | path to the audio to be used for audio2audio. if missing or empty, rand2audio will be used.  |
+| --remove_dc_offset         | flag  | False               | When this flag is set, a high pass filter will be applied to the input audio to remove DC offset. |
+| --normalize                | flag  | False               | When this flag is set, output audio samples will be normalized. |
+| --force_cpu                | flag  | False               | When this flag is set, processing will be done on the CPU. |
+| --open                    | flag  | False               | When this flag is set, the containing folder will be opened once your samples are saved. |
 
 ## Using the model trimming script
 

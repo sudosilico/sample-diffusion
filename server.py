@@ -54,13 +54,13 @@ def get_output_path(generation_args, base_out_path):
         return os.path.join(
             base_out_path,
             "variations",
-            f"{generation_args.seed}_{generation_args.n_steps}_{generation_args.noise_level}/",
+            f"{generation_args.seed}_{generation_args.steps}_{generation_args.noise_level}/",
         )
 
     return os.path.join(
         base_out_path,
         "generations",
-        f"{generation_args.seed}_{generation_args.n_steps}/",
+        f"{generation_args.seed}_{generation_args.steps}/",
     )
 
 
@@ -103,7 +103,7 @@ def parse_cli_args():
 
     # args for generation
     parser.add_argument(
-        "--sample_length_multiplier",
+        "--length_multiplier",
         type=int,
         default=1,
         help="sample length multiplier for audio2audio",
@@ -118,10 +118,10 @@ def parse_cli_args():
         "--noise_level", type=float, default=0.7, help="noise level for audio2audio"
     )
     parser.add_argument(
-        "--n_steps", type=int, default=25, help="number of sampling steps"
+        "--steps", type=int, default=25, help="number of sampling steps"
     )
     parser.add_argument(
-        "--n_samples",
+        "--samples",
         type=int,
         default=1,
         help="how many samples to produce / batch size",
