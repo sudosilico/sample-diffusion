@@ -80,6 +80,7 @@ The bot provides the following slash command:
 | --models_path | str | "models" | Path to the folder containing your models |
 | --output_path | str | "outputs_from_discord_bot" | Path to the folder where generated audio will be saved |
 | --config_path | str | "bot_config.ini" | Path to the config file |
+| --open | flag | False | When this flag is used, the bot will open the output folder after generating |
 
 ## Bot configuration
 
