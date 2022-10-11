@@ -2,7 +2,9 @@ from contextlib import nullcontext
 import math
 import gc
 import torch
+import numpy as np
 from audio_diffusion.utils import Stereo, PadCrop
+from einops import rearrange
 from tqdm.auto import trange
 from sample_diffusion.platform import get_torch_device_type
 
@@ -82,7 +84,7 @@ def iplms_sample(model, x, steps, extra_args, is_reverse=False, callback=None):
     return x
 
 
-def rand2audio(model, batch_size: int = 1, steps: int = 25, callback=None):
+def generate_unconditional(model, batch_size: int = 1, steps: int = 25, callback=None):
     torch.cuda.empty_cache()
     gc.collect()
 
@@ -97,7 +99,7 @@ def rand2audio(model, batch_size: int = 1, steps: int = 25, callback=None):
     return audio_out
 
 
-def audio2audio(
+def generate_variation(
     model,
     batch_size,
     steps,
@@ -106,11 +108,11 @@ def audio2audio(
     length_multiplier,
     callback=None,
 ):
-    print("Length multiplier: ", length_multiplier)
-    effective_length = model.chunk_size * length_multiplier
-
     torch.cuda.empty_cache()
     gc.collect()
+    
+    print("Length multiplier: ", length_multiplier)
+    effective_length = model.chunk_size * length_multiplier
 
     augs = torch.nn.Sequential(PadCrop(effective_length, randomize=True), Stereo())
     audio = augs(audio_input).unsqueeze(0).repeat([batch_size, 1, 1])
@@ -131,6 +133,59 @@ def audio2audio(
         callback=callback,
     )
 
+def generate_interpolation(
+    model,
+    samples,
+    steps,
+    audio_source,
+    audio_target,
+    length_multiplier,
+    callback=None,
+):
+    torch.cuda.empty_cache()
+    gc.collect()
+
+    effective_length = model.chunk_size * length_multiplier
+
+    augs = torch.nn.Sequential(PadCrop(effective_length, randomize=True),Stereo())
+    audio = augs(audio_source).unsqueeze(0).repeat([2, 1, 1])
+    audio[1] = augs(audio_target)
+
+    t = torch.linspace(0, 1, steps + 1, device=model.device)
+    step_list = get_crash_schedule(t)
+
+    reversed = iplms_sample(
+        model.diffusion,
+        audio,
+        step_list,
+        {},
+        callback = callback,
+        is_reverse=True
+    )
+
+    lambd = torch.tensor([k/samples for k in range(samples + 2)])
+    assert(reversed[0].shape[0] == reversed[1].shape[0])
+    interps = []
+
+    for channel in range(reversed[0].shape[0]):
+
+      cos_omega = reversed[0][channel]@reversed[1][channel] / \
+          (torch.linalg.norm(reversed[0][channel]) * torch.linalg.norm(reversed[1][channel]))
+      omega = torch.arccos(cos_omega).item()
+
+      a = torch.sin((1 - lambd) * omega) / np.sin(omega)
+      b = torch.sin(lambd * omega) / np.sin(omega)
+      a = a.unsqueeze(1).to(model.device)
+      b = b.unsqueeze(1).to(model.device)
+      interps.append(a * reversed[0][channel] + b * reversed[1][channel])
+
+    return iplms_sample(
+        model.diffusion,
+        rearrange(torch.cat(interps),"(c b) n -> b c n", c = reversed[0].shape[0]),
+        step_list.flip(0)[:-1],
+        {},
+        callback = callback
+    )
 
 def get_crash_schedule(t):
     sigma = torch.sin(t * math.pi / 2) ** 2

@@ -26,7 +26,7 @@ def diffusion_process(
         sample_pural = "" if request.samples == 1 else "s"
         print(f"Generating {request.samples} sample{sample_pural} with seed {request.seed}")
 
-        audio_out, seed = model.generate(seed=request.seed, samples=request.samples, steps=request.steps)
+        audio_out, seed = model.process_unconditional(seed=request.seed, samples=request.samples, steps=request.steps)
         print("Done generating. Saving audio...")
 
         output_path = args.output_path

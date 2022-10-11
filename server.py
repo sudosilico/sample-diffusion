@@ -106,7 +106,7 @@ def parse_cli_args():
         "--length_multiplier",
         type=int,
         default=1,
-        help="sample length multiplier for audio2audio",
+        help="sample length multiplier for generate_variation",
     )
     parser.add_argument(
         "--input_sr",
@@ -115,7 +115,7 @@ def parse_cli_args():
         help="samplerate of the input audio specified in --input",
     )
     parser.add_argument(
-        "--noise_level", type=float, default=0.7, help="noise level for audio2audio"
+        "--noise_level", type=float, default=0.7, help="noise level for generate_variation"
     )
     parser.add_argument(
         "--steps", type=int, default=25, help="number of sampling steps"
@@ -133,7 +133,7 @@ def parse_cli_args():
         "--input",
         type=str,
         default="",
-        help="path to the audio to be used for audio2audio",
+        help="path to the audio to be used for generate_variation",
     )
 
     return parser.parse_args()

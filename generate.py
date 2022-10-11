@@ -40,20 +40,32 @@ def main():
 
 def perform_batch(model: Model, seed, args):
     if args.input:
-        return model.process_audio_file(
-            audio_path=args.input,
-            noise_level=args.noise_level,
-            length_multiplier=args.length_multiplier,
+        if len(args.input) == 1:
+            return model.process_variation(
+                audio_path=args.input,
+                noise_level=args.noise_level,
+                length_multiplier=args.length_multiplier,
+                seed=seed,
+                samples=args.samples,
+                steps=args.steps,
+            )
+        else:
+            
+            return model.process_interpolation(
+                audio_path_source=args.input[0],
+                audio_path_target=args.input[1],
+                length_multiplier=args.length_multiplier,
+                seed=seed,
+                samples=args.samples,
+                steps=args.steps
+            )
+
+    else:
+        return model.process_unconditional(
             seed=seed,
             samples=args.samples,
             steps=args.steps,
         )
-
-    return model.generate(
-        seed=seed,
-        samples=args.samples,
-        steps=args.steps,
-    )
 
 
 def save_audio(audio_out, args, seed, batch):
@@ -110,9 +122,14 @@ def write_to_json(obj, path):
 
 def get_output_folder(args, seed, batch):
     if args.input:
-        parent_folder = os.path.join(
-            args.out_path, f"variations", f"{seed}_{args.steps}_{args.noise_level}"
-        )
+        if len(args.input) == 1:
+            parent_folder = os.path.join(
+                args.out_path, f"variations", f"{seed}_{args.steps}_{args.noise_level}"
+            )
+        else:
+            parent_folder = os.path.join(
+                args.out_path, f"interpolations", f"{seed}_{args.steps}"
+            )
     else:
         parent_folder = os.path.join(
             args.out_path, f"generations", f"{seed}_{args.steps}"
@@ -160,7 +177,7 @@ def parse_cli_args():
         metavar="LENGTH",
         type=int,
         default=-1,
-        help="The sample length multiplier for audio2audio (default: 1)",
+        help="The sample length multiplier for generate_variation (default: 1)",
     )
     parser.add_argument(
         "--input_sr",
@@ -174,7 +191,7 @@ def parse_cli_args():
         metavar="NOISE_LEVEL",
         type=float, 
         default=0.7, 
-        help="The noise level for audio2audio (default: 0.7)"
+        help="The noise level for generate_variation (default: 0.7)"
     )
     parser.add_argument(
         "--steps", 
@@ -209,7 +226,8 @@ def parse_cli_args():
         metavar="INPUT",
         type=str,
         default="",
-        help="Path to the audio to be used for audio2audio. If omitted, audio will be generated using random noise.",
+        nargs = '+',
+        help="Path to the audio to be used for generate_variation or interpolations. If omitted, audio will be generated using random noise.",
     )
 
     # audio post-processing arguments

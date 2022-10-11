@@ -68,8 +68,8 @@ python generate.py --ckpt models/some-other-model.ckpt
 
 Your audio samples will then be in one of the following folders:
 
-- `audio_out/generations/{seed}_{steps}` for generations (rand2audio)
-- `audio_out/variations/{seed}_{steps}_{noise_level}` for variations (audio2audio)
+- `audio_out/generations/{seed}_{steps}` for generations (generate_unconditional)
+- `audio_out/variations/{seed}_{steps}_{noise_level}` for variations (generate_variation)
 
 along with a `meta.json` file containing the arguments, seed, and batch number.
 
@@ -97,14 +97,14 @@ When generating multiple batches, the first batch will use the passed seed (or a
 | --spc                      | int   | 65536               | the samples per chunk of the model                 |
 | --sr                       | int   | 48000               | the samplerate of the model                        |
 | --out_path                 | str   | "audio_out"         | path to the folder for the samples to be saved in  |
-| --length_multiplier        | int   | 1                   | sample length multiplier for audio2audio           |
+| --length_multiplier        | int   | 1                   | sample length multiplier for generate_variation           |
 | --input_sr                 | int   | 44100               | samplerate of the input audio specified in --input |
-| --noise_level              | float | 0.7                 | noise level for audio2audio                        |
+| --noise_level              | float | 0.7                 | noise level for generate_variation                        |
 | --steps                    | int   | 25                  | number of sampling steps                           |
 | --samples                  | int   | 1                   | how many samples to generate per batch             |
 | --batches                  | int   | 1                   | how many batches of samples to generate            |
 | --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
-| --input                    | str   | ""                  | path to the audio to be used for audio2audio. if missing or empty, rand2audio will be used.  |
+| --input                    | str   | ""                  | path to the audio to be used for generate_variation. if missing or empty, generate_unconditional will be used.  |
 | --remove_dc_offset         | flag  | False               | When this flag is set, a high pass filter will be applied to the input audio to remove DC offset. |
 | --normalize                | flag  | False               | When this flag is set, output audio samples will be normalized. |
 | --force_cpu                | flag  | False               | When this flag is set, processing will be done on the CPU. |

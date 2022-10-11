@@ -4,7 +4,7 @@ import torch
 import torchaudio
 from torch import nn
 from audio_diffusion.models import DiffusionAttnUnet1D
-from sample_diffusion.inference import audio2audio, rand2audio
+from sample_diffusion.inference import generate_unconditional, generate_variation, generate_interpolation
 from sample_diffusion.platform import get_torch_device_type
 from pytorch_lightning import seed_everything
 
@@ -68,17 +68,21 @@ class Model:
 
         return self._module.diffusion_ema
 
-    def generate(
-        self, seed: int = -1, samples: int = 1, steps: int = 25, callback=None
+    def process_unconditional(
+        self,
+        seed: int = -1,
+        samples: int = 1,
+        steps: int = 25,
+        callback=None
     ):
         """Generates new unconditional audio samples."""
 
         seed = self.seed(seed)
-        audio_out = rand2audio(self, samples, steps, callback)
+        audio_out = generate_unconditional(self, samples, steps, callback)
 
         return audio_out, seed
 
-    def process_audio_file(
+    def process_variation(
         self,
         audio_path: str,
         noise_level: float = 0.7,
@@ -86,7 +90,7 @@ class Model:
         seed: int = -1,
         samples: int = 1,
         steps: int = 25,
-        callback=None,
+        callback=None
     ):
         """Generate new audio samples from a given audio file path."""
 
@@ -100,12 +104,53 @@ class Model:
         )
 
         seed = self.seed(seed)
-        audio_out = audio2audio(
-            self, samples, steps, audio_in, noise_level, length, callback
+        audio_out = generate_variation(
+            self,
+            samples,
+            steps,
+            audio_in,
+            noise_level,
+            length,
+            callback
         )
 
         return audio_out, seed
+    
+    def process_interpolation(
+        self,
+        audio_path_source: str,
+        audio_path_target: str,
+        length_multiplier: int = -1,
+        seed: int = -1,
+        samples: int = 1,
+        steps: int = 25,
+        callback=None
+    ):
+        """Generate interpolations between audio samples from given audio file paths."""
+        
+        audio_source = self._load_audio_file(audio_path_source)
+        audio_target = self._load_audio_file(audio_path_target)
+        
+        # The sample length, in multiples of self.chunk_size. Will use the largest that fits all of the audio if not specified or -1 used.
+        length = (
+            length_multiplier
+            if length_multiplier != -1
+            else (ceil(max(audio_source.shape[-1], audio_target.shape[-1]) / float(self.chunk_size)))
+        )
 
+        seed = self.seed(seed)
+        audio_out = generate_interpolation(
+            self,
+            samples,
+            steps,
+            audio_source,
+            audio_target,
+            length,
+            callback
+        )
+
+        return audio_out, seed
+    
     def _load_audio_file(self, audio_path: str):
         if self.device is None:
             raise RuntimeError("Model not loaded.")
