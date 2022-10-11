@@ -1,6 +1,5 @@
 import os, argparse
 import torchaudio
-import torch
 import json
 import time
 from sample_diffusion.model import Model
@@ -68,6 +67,7 @@ def save_audio(audio_out, args, seed, batch):
     for ix, sample in enumerate(audio_out):
         output_file = os.path.join(output_path, f"sample_{ix + 1}.wav")
         open(output_file, "a").close()
+        
         output = sample.cpu()
 
         torchaudio.save(output_file, output, args.sr)
@@ -216,7 +216,6 @@ def parse_cli_args():
         default=False,
         help="When this flag is set, output audio samples will be normalized.",
     )
-
     parser.add_argument(
         "--force_cpu",
         action="store_true",
