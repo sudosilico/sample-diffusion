@@ -1,4 +1,5 @@
 import asyncio
+from multiprocessing.managers import SyncManager
 import os
 import torch
 import discord
@@ -28,7 +29,7 @@ class DiffusionResponse:
         self.seed = seed
 
 
-def create_bot_with_commands(manager: mp.Manager, request_queue: mp.Queue, response_queue: mp.Queue, args, config: BotConfig):
+def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, response_queue: mp.Queue, args, config: BotConfig):
     bot = discord.Bot()
 
     models_metadata = ModelsMetadata(args.models_path)
@@ -91,9 +92,6 @@ def create_bot_with_commands(manager: mp.Manager, request_queue: mp.Queue, respo
                 f"Error: Invalid number of steps: {steps}. Must be within the range [1, {max_steps}]."
             )
             return
-
-
-
 
         done_event = manager.Event()
 

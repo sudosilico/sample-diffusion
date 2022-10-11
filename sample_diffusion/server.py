@@ -43,8 +43,8 @@ class SocketIOServer:
             generation_args.length_multiplier = data["length_multiplier"]
             generation_args.input_sr = data["input_sr"]
             generation_args.noise_level = data["noise_level"]
-            generation_args.n_steps = data["n_steps"]
-            generation_args.n_samples = data["n_samples"]
+            generation_args.steps = data["steps"]
+            generation_args.samples = data["samples"]
             generation_args.seed = data["seed"]
 
             if self.ongenerate is not None:

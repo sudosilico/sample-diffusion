@@ -1,4 +1,4 @@
-name: sd_backend
+name: dd
 channels:
   - pytorch
   - defaults

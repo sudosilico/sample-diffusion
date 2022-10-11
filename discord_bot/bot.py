@@ -1,4 +1,5 @@
 import multiprocessing as mp
+from multiprocessing.managers import SyncManager
 import os
 import torchaudio
 from discord_bot.commands import DiffusionRequest, DiffusionResponse, create_bot_with_commands
@@ -63,7 +64,7 @@ def diffusion_process(
 
 
 class Bot:
-    manager: mp.Manager
+    manager: SyncManager
     request_queue: mp.Queue
     response_queue: mp.Queue
     config: BotConfig

@@ -18,7 +18,7 @@ def main():
 
     start_time = time.process_time()
 
-    for batch in range(args.n_batches):
+    for batch in range(args.batches):
         audio_out, seed = perform_batch(model, args.seed + batch, args)
 
         audio_out = post_process_audio(
@@ -34,7 +34,7 @@ def main():
     elapsed = end_time - start_time
 
     print(
-        f"Done! Generated {args.n_samples * args.n_batches} samples in {elapsed} seconds."
+        f"Done! Generated {args.samples * args.batches} samples in {elapsed} seconds."
     )
 
 
@@ -45,14 +45,14 @@ def perform_batch(model: Model, seed, args):
             noise_level=args.noise_level,
             length_multiplier=args.length_multiplier,
             seed=seed,
-            samples=args.n_samples,
-            steps=args.n_steps,
+            samples=args.samples,
+            steps=args.steps,
         )
 
     return model.generate(
         seed=seed,
-        samples=args.n_samples,
-        steps=args.n_steps,
+        samples=args.samples,
+        steps=args.steps,
     )
 
 
@@ -72,15 +72,24 @@ def save_audio(audio_out, args, seed, batch):
 
         torchaudio.save(output_file, output, args.sr)
 
-    if args.n_batches > 1:
-        print(f"Finished batch {batch + 1} of {args.n_batches}.")
+    if args.batches > 1:
+        print(f"Finished batch {batch + 1} of {args.batches}.")
 
-    print(f"\nYour samples are waiting for you here: {output_path}")
+
+    # open the request_path folder in a cross-platform way
+    if args.open:
+        if os.name == "nt":
+            os.startfile(output_path)
+        elif os.name == "posix":
+            os.system(f"open {output_path}")
+    else:
+        print(f"\nYour samples are waiting for you here: {output_path}")
+
 
     if args.input:
-        print(f"  Seed: {seed}, Steps: {args.n_steps}, Noise: {args.noise_level}\n")
+        print(f"  Seed: {seed}, Steps: {args.steps}, Noise: {args.noise_level}\n")
     else:
-        print(f"  Seed: {seed}, Steps: {args.n_steps}\n")
+        print(f"  Seed: {seed}, Steps: {args.steps}\n")
 
 
 def write_metadata(args, seed, batch, path):
@@ -102,11 +111,11 @@ def write_to_json(obj, path):
 def get_output_folder(args, seed, batch):
     if args.input:
         parent_folder = os.path.join(
-            args.out_path, f"variations", f"{seed}_{args.n_steps}_{args.noise_level}"
+            args.out_path, f"variations", f"{seed}_{args.steps}_{args.noise_level}"
         )
     else:
         parent_folder = os.path.join(
-            args.out_path, f"generations", f"{seed}_{args.n_steps}"
+            args.out_path, f"generations", f"{seed}_{args.steps}"
         )
 
     return parent_folder
@@ -168,21 +177,21 @@ def parse_cli_args():
         help="The noise level for audio2audio (default: 0.7)"
     )
     parser.add_argument(
-        "--n_steps", 
+        "--steps", 
         metavar="STEPS",
         type=int, 
         default=25, 
         help="The number of sampling steps (default: 25)"
     )
     parser.add_argument(
-        "--n_samples",
+        "--samples",
         metavar="SAMPLES",
         type=int,
         default=1,
         help="The number of samples to generate per batch (default: 1)",
     )
     parser.add_argument(
-        "--n_batches",
+        "--batches",
         metavar="BATCHES",
         type=int,
         default=1,
@@ -222,6 +231,13 @@ def parse_cli_args():
         default=False,
         help="When this flag is set, processing will be done on the CPU.",
     )
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        default=False,
+        help="when this flag is used, the bot will open the output folder after generation",
+    )
+
 
     return parser.parse_args()
 

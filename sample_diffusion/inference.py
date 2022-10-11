@@ -82,12 +82,12 @@ def iplms_sample(model, x, steps, extra_args, is_reverse=False, callback=None):
     return x
 
 
-def rand2audio(model, batch_size: int = 1, n_steps: int = 25, callback=None):
+def rand2audio(model, batch_size: int = 1, steps: int = 25, callback=None):
     torch.cuda.empty_cache()
     gc.collect()
 
     noise = torch.randn([batch_size, 2, model.chunk_size]).to(model.device, non_blocking=False)
-    t = torch.linspace(1, 0, n_steps + 1, device=model.device)[:-1]
+    t = torch.linspace(1, 0, steps + 1, device=model.device)[:-1]
     step_list = get_crash_schedule(t)
 
     audio_out = iplms_sample(
@@ -100,7 +100,7 @@ def rand2audio(model, batch_size: int = 1, n_steps: int = 25, callback=None):
 def audio2audio(
     model,
     batch_size,
-    n_steps,
+    steps,
     audio_input,
     noise_level,
     length_multiplier,
@@ -115,7 +115,7 @@ def audio2audio(
     augs = torch.nn.Sequential(PadCrop(effective_length, randomize=True), Stereo())
     audio = augs(audio_input).unsqueeze(0).repeat([batch_size, 1, 1])
 
-    t = torch.linspace(0, 1, n_steps + 1, device=model.device)
+    t = torch.linspace(0, 1, steps + 1, device=model.device)
     step_list = get_crash_schedule(t)
     step_list = step_list[step_list < noise_level]
 
