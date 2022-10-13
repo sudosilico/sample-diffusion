@@ -1,15 +1,32 @@
-from contextlib import nullcontext
+import sys
 import math
 import gc
 import torch
 import numpy as np
+from contextlib import nullcontext
 from audio_diffusion.utils import Stereo, PadCrop
 from einops import rearrange
 from tqdm.auto import trange
 from sample_diffusion.platform import get_torch_device_type
-
 from diffusion import utils
-import sys
+
+
+# -----   Code modified from v-diffusion to support Apple MPS   -----
+
+
+def get_crash_schedule(t):
+    sigma = torch.sin(t * math.pi / 2) ** 2
+    alpha = (1 - sigma**2) ** 0.5
+    return alpha_sigma_to_t(alpha, sigma)
+
+
+def alpha_sigma_to_t(alpha, sigma):
+    return torch.atan2(sigma, alpha) / math.pi * 2
+
+
+def t_to_alpha_sigma(t):
+    return torch.cos(t * math.pi / 2), torch.sin(t * math.pi / 2)
+
 
 def make_eps_model_fn(model):
     def eps_model_fn(x, t, **extra_args):
@@ -48,6 +65,7 @@ def transfer(x, eps, t_1, t_2):
     x = pred * utils.append_dims(next_alphas, x.ndim) + eps * utils.append_dims(next_sigmas, x.ndim)
     return x, pred
 
+
 def iplms_step(model, x, old_eps, t_1, t_2, extra_args):
     eps_model_fn = make_eps_model_fn(model)
     eps = eps_model_fn(x, t_1, **extra_args)
@@ -82,6 +100,9 @@ def iplms_sample(model, x, steps, extra_args, is_reverse=False, callback=None):
         if callback is not None:
             callback({'x': x, 'i': i, 't': steps[i], 'pred': pred})
     return x
+
+
+# ------------------------------------------------------------
 
 
 def generate_unconditional(model, batch_size: int = 1, steps: int = 25, callback=None):
@@ -132,6 +153,7 @@ def generate_variation(
         {},
         callback=callback,
     )
+
 
 def generate_interpolation(
     model,
@@ -186,16 +208,4 @@ def generate_interpolation(
         {},
         callback = callback
     )
-
-def get_crash_schedule(t):
-    sigma = torch.sin(t * math.pi / 2) ** 2
-    alpha = (1 - sigma**2) ** 0.5
-    return alpha_sigma_to_t(alpha, sigma)
-
-
-def alpha_sigma_to_t(alpha, sigma):
-    return torch.atan2(sigma, alpha) / math.pi * 2
-
-
-def t_to_alpha_sigma(t):
-    return torch.cos(t * math.pi / 2), torch.sin(t * math.pi / 2)
+    

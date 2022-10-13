@@ -104,7 +104,7 @@ When generating multiple batches, the first batch will use the passed seed (or a
 | --samples                  | int   | 1                   | how many samples to generate per batch             |
 | --batches                  | int   | 1                   | how many batches of samples to generate            |
 | --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
-| --input                    | str   | ""                  | path to the audio to be used for generate_variation. if missing or empty, generate_unconditional will be used.  |
+| --input                    | str   | None                  | path to the audio to be used for generate_variation. if missing, generate_unconditional will be used.  |
 | --remove_dc_offset         | flag  | False               | When this flag is set, a high pass filter will be applied to the input audio to remove DC offset. |
 | --normalize                | flag  | False               | When this flag is set, output audio samples will be normalized. |
 | --force_cpu                | flag  | False               | When this flag is set, processing will be done on the CPU. |

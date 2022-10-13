@@ -39,33 +39,31 @@ def main():
 
 
 def perform_batch(model: Model, seed, args):
-    if args.input:
-        if len(args.input) == 1:
-            return model.process_variation(
-                audio_path=args.input,
-                noise_level=args.noise_level,
-                length_multiplier=args.length_multiplier,
-                seed=seed,
-                samples=args.samples,
-                steps=args.steps,
-            )
-        else:
-            
-            return model.process_interpolation(
-                audio_path_source=args.input[0],
-                audio_path_target=args.input[1],
-                length_multiplier=args.length_multiplier,
-                seed=seed,
-                samples=args.samples,
-                steps=args.steps
-            )
-
-    else:
+    if args.input is None:
         return model.process_unconditional(
             seed=seed,
             samples=args.samples,
             steps=args.steps,
         )
+
+    if len(args.input) == 1:
+        return model.process_variation(
+            audio_path=args.input[0],
+            noise_level=args.noise_level,
+            length_multiplier=args.length_multiplier,
+            seed=seed,
+            samples=args.samples,
+            steps=args.steps,
+        )
+        
+    return model.process_interpolation(
+        audio_path_source=args.input[0],
+        audio_path_target=args.input[1],
+        length_multiplier=args.length_multiplier,
+        seed=seed,
+        samples=args.samples,
+        steps=args.steps
+    )
 
 
 def save_audio(audio_out, args, seed, batch):
@@ -75,7 +73,7 @@ def save_audio(audio_out, args, seed, batch):
         os.makedirs(output_path)
 
     write_metadata(args, seed, batch, os.path.join(output_path, "meta.json"))
-
+    
     for ix, sample in enumerate(audio_out):
         output_file = os.path.join(output_path, f"sample_{ix + 1}.wav")
         open(output_file, "a").close()
@@ -87,7 +85,6 @@ def save_audio(audio_out, args, seed, batch):
     if args.batches > 1:
         print(f"Finished batch {batch + 1} of {args.batches}.")
 
-
     # open the request_path folder in a cross-platform way
     if args.open:
         if os.name == "nt":
@@ -96,12 +93,6 @@ def save_audio(audio_out, args, seed, batch):
             os.system(f"open {output_path}")
     else:
         print(f"\nYour samples are waiting for you here: {output_path}")
-
-
-    if args.input:
-        print(f"  Seed: {seed}, Steps: {args.steps}, Noise: {args.noise_level}\n")
-    else:
-        print(f"  Seed: {seed}, Steps: {args.steps}\n")
 
 
 def write_metadata(args, seed, batch, path):
@@ -121,21 +112,22 @@ def write_to_json(obj, path):
 
 
 def get_output_folder(args, seed, batch):
-    if args.input:
-        if len(args.input) == 1:
-            parent_folder = os.path.join(
-                args.out_path, f"variations", f"{seed}_{args.steps}_{args.noise_level}"
-            )
-        else:
-            parent_folder = os.path.join(
-                args.out_path, f"interpolations", f"{seed}_{args.steps}"
-            )
-    else:
-        parent_folder = os.path.join(
-            args.out_path, f"generations", f"{seed}_{args.steps}"
+    if args.input is None:
+        return os.path.join(
+           args.out_path, f"generations", f"{seed}_{args.steps}"
+        )
+    
+    if len(args.input) == 1:
+        return os.path.join(
+            args.out_path, f"variations", f"{seed}_{args.steps}_{args.noise_level}"
         )
 
-    return parent_folder
+    file_1 = os.path.splitext(os.path.basename(args.input[0]))[0]
+    file_2 = os.path.splitext(os.path.basename(args.input[1]))[0]
+
+    return os.path.join(
+        args.out_path, f"interpolations", f"{seed}_{file_1}_to_{file_2}"
+    )
 
 
 def parse_cli_args():
@@ -225,7 +217,7 @@ def parse_cli_args():
         "--input",
         metavar="INPUT",
         type=str,
-        default="",
+        default=None,
         nargs = '+',
         help="Path to the audio to be used for generate_variation or interpolations. If omitted, audio will be generated using random noise.",
     )
@@ -255,7 +247,6 @@ def parse_cli_args():
         default=False,
         help="When this flag is set, the containing folder will be opened once your samples are saved.",
     )
-
 
     return parser.parse_args()
 
