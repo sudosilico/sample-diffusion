@@ -39,20 +39,30 @@ def main():
 
 
 def perform_batch(model: Model, seed, args):
-    if args.input:
-        return model.process_audio_file(
-            audio_path=args.input,
+    if args.input is None:
+        return model.process_unconditional(
+            seed=seed,
+            samples=args.samples,
+            steps=args.steps,
+        )
+
+    if len(args.input) == 1:
+        return model.process_variation(
+            audio_path=args.input[0],
             noise_level=args.noise_level,
             length_multiplier=args.length_multiplier,
             seed=seed,
             samples=args.samples,
             steps=args.steps,
         )
-
-    return model.generate(
+        
+    return model.process_interpolation(
+        audio_path_source=args.input[0],
+        audio_path_target=args.input[1],
+        length_multiplier=args.length_multiplier,
         seed=seed,
         samples=args.samples,
-        steps=args.steps,
+        steps=args.steps
     )
 
 
@@ -63,7 +73,7 @@ def save_audio(audio_out, args, seed, batch):
         os.makedirs(output_path)
 
     write_metadata(args, seed, batch, os.path.join(output_path, "meta.json"))
-
+    
     for ix, sample in enumerate(audio_out):
         output_file = os.path.join(output_path, f"sample_{ix + 1}.wav")
         open(output_file, "a").close()
@@ -75,7 +85,6 @@ def save_audio(audio_out, args, seed, batch):
     if args.batches > 1:
         print(f"Finished batch {batch + 1} of {args.batches}.")
 
-
     # open the request_path folder in a cross-platform way
     if args.open:
         if os.name == "nt":
@@ -84,12 +93,6 @@ def save_audio(audio_out, args, seed, batch):
             os.system(f"open {output_path}")
     else:
         print(f"\nYour samples are waiting for you here: {output_path}")
-
-
-    if args.input:
-        print(f"  Seed: {seed}, Steps: {args.steps}, Noise: {args.noise_level}\n")
-    else:
-        print(f"  Seed: {seed}, Steps: {args.steps}\n")
 
 
 def write_metadata(args, seed, batch, path):
@@ -109,16 +112,22 @@ def write_to_json(obj, path):
 
 
 def get_output_folder(args, seed, batch):
-    if args.input:
-        parent_folder = os.path.join(
+    if args.input is None:
+        return os.path.join(
+           args.out_path, f"generations", f"{seed}_{args.steps}"
+        )
+    
+    if len(args.input) == 1:
+        return os.path.join(
             args.out_path, f"variations", f"{seed}_{args.steps}_{args.noise_level}"
         )
-    else:
-        parent_folder = os.path.join(
-            args.out_path, f"generations", f"{seed}_{args.steps}"
-        )
 
-    return parent_folder
+    file_1 = os.path.splitext(os.path.basename(args.input[0]))[0]
+    file_2 = os.path.splitext(os.path.basename(args.input[1]))[0]
+
+    return os.path.join(
+        args.out_path, f"interpolations", f"{seed}_{file_1}_to_{file_2}"
+    )
 
 
 def parse_cli_args():
@@ -160,7 +169,7 @@ def parse_cli_args():
         metavar="LENGTH",
         type=int,
         default=-1,
-        help="The sample length multiplier for audio2audio (default: 1)",
+        help="The sample length multiplier for generate_variation (default: 1)",
     )
     parser.add_argument(
         "--input_sr",
@@ -174,7 +183,7 @@ def parse_cli_args():
         metavar="NOISE_LEVEL",
         type=float, 
         default=0.7, 
-        help="The noise level for audio2audio (default: 0.7)"
+        help="The noise level for generate_variation (default: 0.7)"
     )
     parser.add_argument(
         "--steps", 
@@ -208,8 +217,9 @@ def parse_cli_args():
         "--input",
         metavar="INPUT",
         type=str,
-        default="",
-        help="Path to the audio to be used for audio2audio. If omitted, audio will be generated using random noise.",
+        default=None,
+        nargs = '+',
+        help="Path to the audio to be used for generate_variation or interpolations. If omitted, audio will be generated using random noise.",
     )
 
     # audio post-processing arguments
@@ -237,7 +247,6 @@ def parse_cli_args():
         default=False,
         help="When this flag is set, the containing folder will be opened once your samples are saved.",
     )
-
 
     return parser.parse_args()
 
