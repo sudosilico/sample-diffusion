@@ -13,7 +13,9 @@ def log_data(data):
 
 
 class ModelDropdown(discord.ui.Select):
-    def __init__(self, models_metadata: ModelsMetadata):
+    def __init__(self, models_metadata: ModelsMetadata, selector):
+        self.selector = selector
+
         options = []
 
         index = 1
@@ -35,6 +37,12 @@ class ModelDropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
+
+        self.selector.model_name = self.values[0]
+
+        await self.selector.interaction.edit_original_response(
+            embed=self.selector.get_embed()
+        )
 
 
 class ViewButton(discord.ui.Button):
@@ -61,8 +69,10 @@ class ModelSelectorView(discord.ui.View):
         self.noise_level = 0.7
         self.steps = 25
         self.samples = 1
+        self.model_name = "⚠️ None"
+        self.model_ckpt = None
 
-        self.model_dropdown = ModelDropdown(models_metadata)
+        self.model_dropdown = ModelDropdown(models_metadata, self)
         self.add_item(self.model_dropdown)
 
         # noise level
@@ -135,7 +145,8 @@ class ModelSelectorView(discord.ui.View):
         embed.add_field(name="Steps", value=self.steps)
         embed.add_field(name="Samples", value=self.samples, inline=True)
         
-        embed.add_field(name="Seed", value=self.seed, inline=True)
+        embed.add_field(name="Seed", value=self.seed)
+        embed.add_field(name="Model", value=self.model_name)
 
         return embed
 
