@@ -7,7 +7,7 @@ class ModelsMetadata:
         if not os.path.exists(models_path):
             os.makedirs(models_path)
 
-        meta_path = os.path.join(models_path, "meta.json")
+        meta_path = os.path.join(models_path, "models.json")
         meta_json = None
 
         # get ckpt files from models path
@@ -28,7 +28,7 @@ class ModelsMetadata:
         pass
 
         # ensure each checkpoint file has a metadata entry
-        for ckpt in models_path:
+        for ckpt in ckpt_paths:
             has_meta = False
 
             for model in meta_json["models"]:
@@ -38,11 +38,11 @@ class ModelsMetadata:
 
             if not has_meta:
                 meta_json["models"].append({
+                    "name": os.path.splitext(ckpt)[0],
+                    "description": "",
                     "path": ckpt,
-                    "name": ckpt,
                     "sample_rate": 48000,
                     "chunk_size": 65536,
-                    "description": "",
                 })
 
         # save updated metadata to json file
@@ -51,6 +51,7 @@ class ModelsMetadata:
 
         self.ckpt_paths = ckpt_paths
         self.meta_json = meta_json
+
 
     def get_meta(self, ckpt: str):
         for model in self.meta_json["models"]:
