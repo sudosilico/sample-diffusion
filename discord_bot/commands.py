@@ -7,6 +7,7 @@ import multiprocessing as mp
 import itertools
 from discord_bot.config import BotConfig
 from discord_bot.models_metadata import ModelsMetadata
+from discord_bot.ui.variations import ModelSelectorView
 
 
 class DiffusionRequest:
@@ -23,7 +24,7 @@ class DiffusionRequest:
 
 
 class DiffusionResponse:
-    def __init__(self, request: DiffusionRequest, files: list[str], seed: int):
+    def __init__(self, request: DiffusionRequest, files: "list[str]", seed: int):
         self.request = request
         self.files = files
         self.seed = seed
@@ -42,6 +43,38 @@ def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, resp
     def autocomplete(ctx):
         return ckpt_paths
 
+    @bot.message_command(name="Generate variation...")
+    async def generate_variation(
+        ctx: discord.commands.context.ApplicationContext,
+        message: discord.message.Message
+    ):
+        if message.attachments is not None and len(message.attachments) == 1:
+            file = message.attachments[0]
+
+            if file.content_type == "audio/x-wav":
+                containing_folder = os.path.join(args.output_path, "variations")
+                attachment_path = os.path.join(containing_folder, file.filename)
+
+                if not os.path.exists(containing_folder):
+                    os.makedirs(containing_folder)
+
+                print(f"Saving attachment to '{attachment_path}'")
+
+                await file.save(attachment_path)
+
+                ckpt_view = ModelSelectorView(models_metadata)
+                ckpt_view.embed = ckpt_view.get_embed()
+                ckpt_view.interaction = await ctx.respond(view=ckpt_view, ephemeral=True, embed=ckpt_view.embed)
+            else:
+                await ctx.respond(f"Error: You can only generate variations of `.wav` files.")
+                return
+
+        else:
+            if message.attachments is None or len(message.attachments) == 0:
+                await ctx.respond(f"Error: You must choose a `.wav` file to generate a variation of.")
+            return
+
+    
     @bot.command(name="generate", help="Generate a sample from the model.")
     async def generate(
         ctx: discord.commands.context.ApplicationContext,
@@ -70,7 +103,6 @@ def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, resp
             default=25
         ) = 25,
     ):
-
         # make sure model exists
         if not os.path.exists(os.path.join(args.models_path, model)):
             await ctx.respond(f"Error: Model '{model}' not found.")
@@ -105,7 +137,7 @@ def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, resp
         request_queue_size = request_queue.qsize()
         request_queue.put(request)
 
-        await ctx.respond(f"Your request has been queued. There are ~{request_queue_size} tasks ahead of yours in the queue.")
+        original_message = await ctx.respond(f"Your request has been queued. There are {request_queue_size} tasks ahead of yours in the queue.")
 
         current_id = request.id
 
@@ -125,13 +157,18 @@ def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, resp
             else:
                 message = "Your sample is ready:"
 
-            message += f"\n**Seed:** {seed}"
-            message += f"\n**Samples:** {request.samples}"
-            message += f"\n**Steps:** {request.steps}"
-            message += f"\n**Model:** {model}\n"
+            harmonai_blue = 0x01239b
+            embed = discord.Embed(color=harmonai_blue)
+
+            embed.add_field(name="Model", value=model)
+            embed.add_field(name="Seed", value=seed)
+            embed.add_field(name="Samples", value=samples)
+            embed.add_field(name="Steps", value=steps)
+
+            original_response = await original_message.original_response()
 
             await ctx.send(
-                files=files, content=f"{ctx.author.mention} {message}"
+                embed=embed, files=files, content=f"{ctx.author.mention} {message}", reference=original_response
             )
         else:
             err = f"Internal error: ID mismatch. Got a response for ({response.request.id}) when processing ({request.id})."
