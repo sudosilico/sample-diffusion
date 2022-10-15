@@ -60,9 +60,9 @@ class ViewButton(discord.ui.Button):
 
 
 class ModelSelectorView(discord.ui.View):
-    interaction: discord.interactions.Interaction
-
     def __init__(self, models_metadata):
+        self.interaction: discord.interactions.Interaction = None
+        
         super().__init__()
 
         self.seed = "Random"

@@ -64,12 +64,11 @@ def diffusion_process(
 
 
 class Bot:
-    manager: SyncManager
-    request_queue: mp.Queue
-    response_queue: mp.Queue
-    config: BotConfig
-
     def __init__(self, token: str, args, config: BotConfig):
+        manager: SyncManager = None
+        request_queue: mp.Queue = None
+        response_queue: mp.Queue = None
+
         self.token = token
         self.args = args
         self.config = config
