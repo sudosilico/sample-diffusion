@@ -1,8 +1,8 @@
 import torchaudio
 import torch
 
-def post_process_audio(audio_out, sample_rate: int, remove_dc_offset: bool = True, normalize: bool = True):
-    if remove_dc_offset:
+def post_process_audio(audio_out, sample_rate: int, remove_dc_offset_: bool = True, normalize: bool = True):
+    if remove_dc_offset_:
         print("Filtering DC offset...")
         audio_out = remove_dc_offset(audio_out, sample_rate)
 

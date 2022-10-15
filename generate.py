@@ -24,7 +24,7 @@ def main():
         audio_out = post_process_audio(
             audio_out, 
             sample_rate=args.sr, 
-            remove_dc_offset=args.remove_dc_offset, 
+            remove_dc_offset_=args.remove_dc_offset, 
             normalize=args.normalize
         )
 
