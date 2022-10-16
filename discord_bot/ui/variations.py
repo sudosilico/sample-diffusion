@@ -1,7 +1,7 @@
 import os
 import discord
 from discord_bot.models_metadata import ModelsMetadata
-from discord_bot.ui.modals import NoiseLevelModal, SamplesModal, SeedModal, StepsModal
+from discord_bot.ui.modals import create_noise_level_modal, create_samples_modal, create_seed_modal, create_steps_modal
 
 
 def log_data(data):
@@ -80,7 +80,7 @@ class GenerateVariationUIView(discord.ui.View):
         async def set_noise_level(
             button: discord.ui.Button, interaction: discord.Interaction
         ):
-            await interaction.response.send_modal(NoiseLevelModal(self))
+            await interaction.response.send_modal(create_noise_level_modal(self))
 
         self.set_noise_level_btn = ViewButton(set_noise_level, label="Set noise level", style=discord.ButtonStyle.blurple, row=2)
         self.add_item(self.set_noise_level_btn)
@@ -89,7 +89,7 @@ class GenerateVariationUIView(discord.ui.View):
         async def set_steps(
             button: discord.ui.Button, interaction: discord.Interaction
         ):
-            await interaction.response.send_modal(StepsModal(self))
+            await interaction.response.send_modal(create_steps_modal(self))
 
         self.set_steps_btn = ViewButton(set_steps, label="Set steps", style=discord.ButtonStyle.blurple, row=2)
         self.add_item(self.set_steps_btn)
@@ -98,7 +98,7 @@ class GenerateVariationUIView(discord.ui.View):
         async def set_samples(
             button: discord.ui.Button, interaction: discord.Interaction
         ):
-            await interaction.response.send_modal(SamplesModal(self))
+            await interaction.response.send_modal(create_samples_modal(self))
 
         self.set_samples_btn = ViewButton(set_samples, label="Set samples", style=discord.ButtonStyle.blurple, row=2)
         self.add_item(self.set_samples_btn)
@@ -107,7 +107,7 @@ class GenerateVariationUIView(discord.ui.View):
         async def set_nonrandom_seed(
             button: discord.ui.Button, interaction: discord.Interaction
         ):
-            await interaction.response.send_modal(SeedModal(self))
+            await interaction.response.send_modal(create_seed_modal(self))
 
         self.set_seed_btn = ViewButton(set_nonrandom_seed, label="Set seed", style=discord.ButtonStyle.gray, row=3)
         self.add_item(self.set_seed_btn)

@@ -62,11 +62,11 @@ def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, resp
                 if not os.path.exists(containing_folder):
                     os.makedirs(containing_folder)
 
-                variation_view.id = next_variation_id()
+                variation_id = next_variation_id()
 
                 # append the variation id to the file name, before the extension, using splitext
                 file_name, file_extension = os.path.splitext(file.filename)
-                file_name = f"{variation_view.id}__{file_name}_{file_extension}"
+                file_name = f"{variation_id}__{file_name}_{file_extension}"
 
                 attachment_path = os.path.join(containing_folder, file_name)
                 print(f"Saving attachment to '{attachment_path}'")
@@ -74,7 +74,7 @@ def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, resp
                 await file.save(attachment_path)
 
                 variation_view = GenerateVariationUIView(models_metadata, file_path=attachment_path)
-
+                variation_view.id = variation_id
 
                 variation_view.interaction = await ctx.respond(
                     view=variation_view, 
