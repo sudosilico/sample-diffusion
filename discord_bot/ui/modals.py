@@ -83,7 +83,6 @@ class StepsModal(discord.ui.Modal):
           self.stop()
 
 
-
 class SamplesModal(discord.ui.Modal):
     def __init__(self, selector):
         self.selector = selector
@@ -155,12 +154,12 @@ class SeedModal(discord.ui.Modal):
             ephemeral=True
           )
         else:
-          await interaction.response.defer()
-
           self.selector.seed = int(seed_str)
+          self.selector.set_random_seed_btn.disabled = False
           
-          await self.selector.interaction.edit_original_response(
-            embed=self.selector.get_embed()
+          await interaction.response.edit_message(
+            embed=self.selector.get_embed(),
+            view=self.selector
           )
 
           self.stop()

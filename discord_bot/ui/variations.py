@@ -32,16 +32,16 @@ class ModelDropdown(discord.ui.Select):
             placeholder="Choose a model...",
             min_values=1,
             max_values=1,
-            options=options
+            options=options,
         )
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-
         self.selector.model_name = self.values[0]
+        self.placeholder = self.selector.model_name
 
-        await self.selector.interaction.edit_original_response(
-            embed=self.selector.get_embed()
+        await interaction.response.edit_message(
+            embed=self.selector.get_embed(),
+            view=self.selector
         )
 
 
@@ -69,8 +69,8 @@ class ModelSelectorView(discord.ui.View):
         self.noise_level = 0.7
         self.steps = 25
         self.samples = 1
-        self.model_name = "⚠️ None"
         self.model_ckpt = None
+        self.model_name = None
 
         self.model_dropdown = ModelDropdown(models_metadata, self)
         self.add_item(self.model_dropdown)
@@ -81,8 +81,8 @@ class ModelSelectorView(discord.ui.View):
         ):
             await interaction.response.send_modal(NoiseLevelModal(self))
 
-        set_noise_level_btn = ViewButton(set_noise_level, label="Set noise level", style=discord.ButtonStyle.blurple, row=2)
-        self.add_item(set_noise_level_btn)
+        self.set_noise_level_btn = ViewButton(set_noise_level, label="Set noise level", style=discord.ButtonStyle.blurple, row=2)
+        self.add_item(self.set_noise_level_btn)
 
         # steps
         async def set_steps(
@@ -90,8 +90,8 @@ class ModelSelectorView(discord.ui.View):
         ):
             await interaction.response.send_modal(StepsModal(self))
 
-        set_steps_btn = ViewButton(set_steps, label="Set steps", style=discord.ButtonStyle.blurple, row=2)
-        self.add_item(set_steps_btn)
+        self.set_steps_btn = ViewButton(set_steps, label="Set steps", style=discord.ButtonStyle.blurple, row=2)
+        self.add_item(self.set_steps_btn)
 
         # samples
         async def set_samples(
@@ -99,8 +99,8 @@ class ModelSelectorView(discord.ui.View):
         ):
             await interaction.response.send_modal(SamplesModal(self))
 
-        set_samples_btn = ViewButton(set_samples, label="Set samples", style=discord.ButtonStyle.blurple, row=2)
-        self.add_item(set_samples_btn)
+        self.set_samples_btn = ViewButton(set_samples, label="Set samples", style=discord.ButtonStyle.blurple, row=2)
+        self.add_item(self.set_samples_btn)
 
         # nonrandom seed
         async def set_nonrandom_seed(
@@ -108,34 +108,36 @@ class ModelSelectorView(discord.ui.View):
         ):
             await interaction.response.send_modal(SeedModal(self))
 
-        set_seed_btn = ViewButton(set_nonrandom_seed, label="Set seed", style=discord.ButtonStyle.gray, row=3)
-        self.add_item(set_seed_btn)
+        self.set_seed_btn = ViewButton(set_nonrandom_seed, label="Set seed", style=discord.ButtonStyle.gray, row=3)
+        self.add_item(self.set_seed_btn)
         
         # random seed
         async def set_random_seed(
             button: discord.ui.Button, interaction: discord.Interaction
         ):
-            await interaction.response.defer()
             self.seed = "Random"
+            button.disabled = True
 
             # update embed
-            await self.interaction.edit_original_response(
-                embed=self.get_embed()
+            await interaction.response.edit_message(
+                embed=self.get_embed(),
+                view=self
             )
 
-        set_random_seed_btn = ViewButton(set_random_seed, label="Use random seed", style=discord.ButtonStyle.gray, row=3)
-        self.add_item(set_random_seed_btn)
+        self.set_random_seed_btn = ViewButton(set_random_seed, label="Use random seed", style=discord.ButtonStyle.gray, row=3)
+        self.set_random_seed_btn.disabled = True
+        self.add_item(self.set_random_seed_btn)
 
 
     @discord.ui.button(label="Generate", style=discord.ButtonStyle.green, row=4)
     async def generate_clicked(
       self, button: discord.ui.Button, interaction: discord.Interaction
     ):
-        values = self.model_dropdown.values
-        print(f"values: {values}")
-
-        await interaction.response.defer()
-
+        await interaction.response.edit_message(
+            embed=None,
+            view=None,
+            content="Generating..."
+        )
 
     def get_embed(self):
         harmonai_blue = 0x01239b
@@ -149,4 +151,11 @@ class ModelSelectorView(discord.ui.View):
         embed.add_field(name="Model", value=self.model_name)
 
         return embed
+
+    async def on_timeout(self):
+        await self.interaction.edit_original_response(
+            view=None,
+            embed=None,
+            content="Timed out..."
+        )
 
