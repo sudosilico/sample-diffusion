@@ -1,18 +1,67 @@
 import discord
 
+class BaseModal(discord.ui.Modal):
+    def __init__(
+        self,
+        selector,
+        title,
+        label,
+        placeholder,
+        style=discord.InputTextStyle.short,
+        validate=None,
+        validation_fail_message=None,
+        callback=None,
+    ):
+        self.selector = selector
+        self.validate = validate
+        self.validation_fail_message = validation_fail_message
+        self.callback = callback
+
+        super().__init__(
+            title=self.title,
+        )
+
+        self.input_text = discord.ui.InputText(
+            label=self.label, value=str(self.selector.noise_level), style=style
+        )
+
+        self.add_item(self.input_text)
+
+    def is_valid(self, val):
+        if self.validate is not None:
+            return self.validate(val)
+        else:
+            return True
+
+    async def callback(self, interaction: discord.Interaction):
+        value_str = self.input_text.value
+        if not self.is_valid(value_str):
+            await interaction.response.send_message(self.validation_fail_message, ephemeral=True)
+        else:
+            await interaction.response.defer()
+
+            if self.callback is not None:
+              self.callback(value_str)
+
+            await self.selector.interaction.edit_original_response(
+                embed=self.selector.get_embed()
+            )
+
+            self.stop()
+
 
 class NoiseLevelModal(discord.ui.Modal):
     def __init__(self, selector):
         self.selector = selector
 
         super().__init__(
-          title="Set noise level...",
+            title="Set noise level...",
         )
 
         self.input_text = discord.ui.InputText(
-          label="Noise Level", 
-          value=str(self.selector.noise_level), 
-          style=discord.InputTextStyle.short
+            label="Noise Level",
+            value=str(self.selector.noise_level),
+            style=discord.InputTextStyle.short,
         )
         self.add_item(self.input_text)
 
@@ -26,20 +75,20 @@ class NoiseLevelModal(discord.ui.Modal):
     async def callback(self, interaction: discord.Interaction):
         noise_level_str = self.input_text.value
         if not self.is_valid(noise_level_str):
-          await interaction.response.send_message(
-            "Error: Noise level must be a valid number within the range [0.0, 1.0].", 
-            ephemeral=True
-          )
+            await interaction.response.send_message(
+                "Error: Noise level must be a valid number within the range [0.0, 1.0].",
+                ephemeral=True,
+            )
         else:
-          await interaction.response.defer()
+            await interaction.response.defer()
 
-          self.selector.noise_level = float(noise_level_str)
+            self.selector.noise_level = float(noise_level_str)
 
-          await self.selector.interaction.edit_original_response(
-            embed=self.selector.get_embed()
-          )
+            await self.selector.interaction.edit_original_response(
+                embed=self.selector.get_embed()
+            )
 
-          self.stop()
+            self.stop()
 
 
 class StepsModal(discord.ui.Modal):
@@ -47,13 +96,13 @@ class StepsModal(discord.ui.Modal):
         self.selector = selector
 
         super().__init__(
-          title="Set steps...",
+            title="Set steps...",
         )
 
         self.input_text = discord.ui.InputText(
-          label="Steps", 
-          value=str(self.selector.steps), 
-          style=discord.InputTextStyle.short
+            label="Steps",
+            value=str(self.selector.steps),
+            style=discord.InputTextStyle.short,
         )
         self.add_item(self.input_text)
 
@@ -67,20 +116,20 @@ class StepsModal(discord.ui.Modal):
     async def callback(self, interaction: discord.Interaction):
         steps_str = self.input_text.value
         if not self.is_valid(steps_str):
-          await interaction.response.send_message(
-            "Error: Steps must be a valid integer number within the range [0, 1000].", 
-            ephemeral=True
-          )
+            await interaction.response.send_message(
+                "Error: Steps must be a valid integer number within the range [0, 1000].",
+                ephemeral=True,
+            )
         else:
-          await interaction.response.defer()
+            await interaction.response.defer()
 
-          self.selector.steps = int(steps_str)
+            self.selector.steps = int(steps_str)
 
-          await self.selector.interaction.edit_original_response(
-            embed=self.selector.get_embed()
-          )
+            await self.selector.interaction.edit_original_response(
+                embed=self.selector.get_embed()
+            )
 
-          self.stop()
+            self.stop()
 
 
 class SamplesModal(discord.ui.Modal):
@@ -88,13 +137,13 @@ class SamplesModal(discord.ui.Modal):
         self.selector = selector
 
         super().__init__(
-          title="Set samples...",
+            title="Set samples...",
         )
 
         self.input_text = discord.ui.InputText(
-          label="Samples", 
-          value=str(self.selector.samples), 
-          style=discord.InputTextStyle.short
+            label="Samples",
+            value=str(self.selector.samples),
+            style=discord.InputTextStyle.short,
         )
         self.add_item(self.input_text)
 
@@ -108,20 +157,20 @@ class SamplesModal(discord.ui.Modal):
     async def callback(self, interaction: discord.Interaction):
         samples_str = self.input_text.value
         if not self.is_valid(samples_str):
-          await interaction.response.send_message(
-            "Error: Samples must be a valid integer number within the range [0, 1000].", 
-            ephemeral=True
-          )
+            await interaction.response.send_message(
+                "Error: Samples must be a valid integer number within the range [0, 1000].",
+                ephemeral=True,
+            )
         else:
-          await interaction.response.defer()
+            await interaction.response.defer()
 
-          self.selector.samples = int(samples_str)
-          
-          await self.selector.interaction.edit_original_response(
-            embed=self.selector.get_embed()
-          )
+            self.selector.samples = int(samples_str)
 
-          self.stop()
+            await self.selector.interaction.edit_original_response(
+                embed=self.selector.get_embed()
+            )
+
+            self.stop()
 
 
 class SeedModal(discord.ui.Modal):
@@ -129,13 +178,13 @@ class SeedModal(discord.ui.Modal):
         self.selector = selector
 
         super().__init__(
-          title="Set a seed...",
+            title="Set a seed...",
         )
 
         self.input_text = discord.ui.InputText(
-          label="Seed", 
-          placeholder="Set an integer seed...",
-          style=discord.InputTextStyle.short
+            label="Seed",
+            placeholder="Set an integer seed...",
+            style=discord.InputTextStyle.short,
         )
         self.add_item(self.input_text)
 
@@ -149,17 +198,17 @@ class SeedModal(discord.ui.Modal):
     async def callback(self, interaction: discord.Interaction):
         seed_str = self.input_text.value
         if not self.is_valid(seed_str):
-          await interaction.response.send_message(
-            "Error: Seed must be a valid integer number.", 
-            ephemeral=True
-          )
+            await interaction.response.send_message(
+                "Error: Seed must be a valid integer number.", ephemeral=True
+            )
         else:
-          self.selector.seed = int(seed_str)
-          self.selector.set_random_seed_btn.disabled = False
-          
-          await interaction.response.edit_message(
-            embed=self.selector.get_embed(),
-            view=self.selector
-          )
+            self.selector.seed = int(seed_str)
+            self.selector.set_random_seed_btn.disabled = False
 
-          self.stop()
+            await interaction.response.edit_message(
+                embed=self.selector.get_embed(), view=self.selector
+            )
+
+            self.stop()
+
+

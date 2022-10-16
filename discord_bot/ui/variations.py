@@ -59,12 +59,13 @@ class ViewButton(discord.ui.Button):
             await self.cb(self, interaction)
 
 
-class ModelSelectorView(discord.ui.View):
-    def __init__(self, models_metadata):
+class GenerateVariationUIView(discord.ui.View):
+    def __init__(self, models_metadata, file_path):
         self.interaction: discord.interactions.Interaction = None
         
         super().__init__()
 
+        self.file_path = file_path
         self.seed = "Random"
         self.noise_level = 0.7
         self.steps = 25
@@ -133,6 +134,14 @@ class ModelSelectorView(discord.ui.View):
     async def generate_clicked(
       self, button: discord.ui.Button, interaction: discord.Interaction
     ):
+        print(f"Variation completed. Deleting '{self.file_path}'")
+
+        if os.path.exists(self.file_path):
+            os.remove(self.file_path)
+            print("Deleted")
+        else:
+            print("The file does not exist")
+
         await interaction.response.edit_message(
             embed=None,
             view=None,
@@ -153,6 +162,14 @@ class ModelSelectorView(discord.ui.View):
         return embed
 
     async def on_timeout(self):
+        print(f"Timed out. Deleting '{self.file_path}'")
+
+        if os.path.exists(self.file_path):
+            os.remove(self.file_path)
+            print("Deleted")
+        else:
+            print("The file does not exist")
+
         await self.interaction.edit_original_response(
             view=None,
             embed=None,

@@ -7,7 +7,7 @@ import multiprocessing as mp
 import itertools
 from discord_bot.config import BotConfig
 from discord_bot.models_metadata import ModelsMetadata
-from discord_bot.ui.variations import ModelSelectorView
+from discord_bot.ui.variations import GenerateVariationUIView
 
 
 class DiffusionRequest:
@@ -43,6 +43,11 @@ def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, resp
     def autocomplete(ctx):
         return ckpt_paths
 
+    variation_id_iter = itertools.count()
+
+    def next_variation_id():
+        return next(variation_id_iter)
+
     @bot.message_command(name="Generate variation...")
     async def generate_variation(
         ctx: discord.commands.context.ApplicationContext,
@@ -53,18 +58,29 @@ def create_bot_with_commands(manager: SyncManager, request_queue: mp.Queue, resp
 
             if file.content_type == "audio/x-wav":
                 containing_folder = os.path.join(args.output_path, "variations")
-                attachment_path = os.path.join(containing_folder, file.filename)
 
                 if not os.path.exists(containing_folder):
                     os.makedirs(containing_folder)
 
+                variation_view.id = next_variation_id()
+
+                # append the variation id to the file name, before the extension, using splitext
+                file_name, file_extension = os.path.splitext(file.filename)
+                file_name = f"{variation_view.id}__{file_name}_{file_extension}"
+
+                attachment_path = os.path.join(containing_folder, file_name)
                 print(f"Saving attachment to '{attachment_path}'")
 
                 await file.save(attachment_path)
 
-                ckpt_view = ModelSelectorView(models_metadata)
-                ckpt_view.embed = ckpt_view.get_embed()
-                ckpt_view.interaction = await ctx.respond(view=ckpt_view, ephemeral=True, embed=ckpt_view.embed)
+                variation_view = GenerateVariationUIView(models_metadata, file_path=attachment_path)
+
+
+                variation_view.interaction = await ctx.respond(
+                    view=variation_view, 
+                    ephemeral=True, 
+                    embed=variation_view.get_embed()
+                )
             else:
                 await ctx.respond(f"Error: You can only generate variations of `.wav` files.")
                 return
