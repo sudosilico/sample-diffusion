@@ -2,6 +2,7 @@ import json
 import os
 import discord
 
+
 class ModelsMetadata:
     def __init__(self, models_path: str):
         if not os.path.exists(models_path):
@@ -19,9 +20,7 @@ class ModelsMetadata:
 
         # load metadata from json file
         if not os.path.exists(meta_path):
-            meta_json = {
-                "models": []
-            }
+            meta_json = {"models": []}
         else:
             with open(meta_path, "r") as f:
                 meta_json = json.load(f)
@@ -37,13 +36,15 @@ class ModelsMetadata:
                     break
 
             if not has_meta:
-                meta_json["models"].append({
-                    "name": os.path.splitext(ckpt)[0],
-                    "description": "",
-                    "path": ckpt,
-                    "sample_rate": 48000,
-                    "chunk_size": 65536,
-                })
+                meta_json["models"].append(
+                    {
+                        "name": os.path.splitext(ckpt)[0],
+                        "description": "",
+                        "path": ckpt,
+                        "sample_rate": 48000,
+                        "chunk_size": 65536,
+                    }
+                )
 
         # save updated metadata to json file
         with open(meta_path, "w") as f:
@@ -51,7 +52,6 @@ class ModelsMetadata:
 
         self.ckpt_paths = ckpt_paths
         self.meta_json = meta_json
-
 
     def get_meta(self, ckpt: str):
         for model in self.meta_json["models"]:
