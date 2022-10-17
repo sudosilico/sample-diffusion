@@ -227,7 +227,23 @@ def create_bot_with_commands(
             request=request,
             response_queue=response_queue,
             original_message=original_message,
+            request_embed=get_generation_embed(request),
         )
 
 
     return bot
+
+
+def get_generation_embed(request: DiffusionRequest):
+    embed = discord.Embed(
+        title="Generation options:",
+        color=0x01239B
+    )
+
+    embed.add_field(name="Steps", value=request.steps)
+    embed.add_field(name="Samples", value=request.samples)
+    embed.add_field(name="Seed", value=request.seed)
+    embed.add_field(name="Model", value=request.model)
+
+    return embed
+        

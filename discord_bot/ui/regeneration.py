@@ -115,6 +115,7 @@ class RegenerationUIView(GenerationViewBase):
             response_queue=self.response_queue,
             interaction=self.interaction,
             parent_view=self,
+            request_embed=self.get_embed(),
         )
 
     def get_embed(self):

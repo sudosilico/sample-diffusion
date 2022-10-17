@@ -29,7 +29,7 @@ async def handle_generation_response(
     original_message=None, 
     ctx: discord.commands.context.ApplicationContext = None, 
     interaction: discord.Interaction = None,
-    parent_view = None,
+    request_embed = None,
 ):
     current_id = request.id
 
@@ -46,11 +46,7 @@ async def handle_generation_response(
     done = False
     progress = 0
     
-    update_embed = parent_view.get_embed() if parent_view is not None else None
-
     while not done:
-        await asyncio.sleep(3)
-
         while not progress_queue.empty():
             progress = progress_queue.get()
 
@@ -66,9 +62,10 @@ async def handle_generation_response(
             content=f"{ctx.author.mention} Generating...\n\n{progress_bar_string} {progress}%"
 
         await msg.edit(
-            embed=update_embed,
+            embed=request_embed,
             content=content,
         )
+        await asyncio.sleep(1)
 
     await msg.edit(content=f"Generation complete!")
 

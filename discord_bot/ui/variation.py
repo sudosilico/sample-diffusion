@@ -34,6 +34,7 @@ class VariationUIView(GenerationViewBase):
         self.file_name = file_name
         self.noise_level = 0.7
         self.length_multiplier = -1
+        self.will_generate = False
 
         # model selector dropdown
         self.model_dropdown = ModelDropdown(models_metadata, self)
@@ -142,7 +143,7 @@ class VariationUIView(GenerationViewBase):
             request=request,
             response_queue=self.response_queue,
             interaction=self.interaction,
-            parent_view=self,
+            request_embed=self.get_embed(),
         )
 
     def get_embed(self):

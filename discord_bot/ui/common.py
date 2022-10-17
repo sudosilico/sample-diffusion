@@ -18,6 +18,7 @@ class GenerationViewBase(discord.ui.View):
     ):
         super().__init__()
 
+        self.interaction: discord.Interaction = None
         self.sync_manager = sync_manager
         self.request_queue = request_queue
         self.response_queue = response_queue
