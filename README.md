@@ -98,13 +98,12 @@ When generating multiple batches, the first batch will use the passed seed (or a
 | --sr                       | int   | 48000               | the samplerate of the model                        |
 | --out_path                 | str   | "audio_out"         | path to the folder for the samples to be saved in  |
 | --length_multiplier        | int   | 1                   | sample length multiplier for generate_variation           |
-| --input_sr                 | int   | 44100               | samplerate of the input audio specified in --input |
 | --noise_level              | float | 0.7                 | noise level for generate_variation                        |
 | --steps                    | int   | 25                  | number of sampling steps                           |
 | --samples                  | int   | 1                   | how many samples to generate per batch             |
 | --batches                  | int   | 1                   | how many batches of samples to generate            |
 | --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
-| --input                    | str   | None                  | path to the audio to be used for generate_variation. if missing, generate_unconditional will be used.  |
+| --input                    | str or str[]   | None                  | path to the audio to be used for generate_variation. if missing, generate_unconditional will be used. If multiple paths given, will perform interpolation.  |
 | --remove_dc_offset         | flag  | False               | When this flag is set, a high pass filter will be applied to the input audio to remove DC offset. |
 | --normalize                | flag  | False               | When this flag is set, output audio samples will be normalized. |
 | --force_cpu                | flag  | False               | When this flag is set, processing will be done on the CPU. |
