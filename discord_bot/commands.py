@@ -246,4 +246,3 @@ def get_generation_embed(request: DiffusionRequest):
     embed.add_field(name="Model", value=request.model)
 
     return embed
-        

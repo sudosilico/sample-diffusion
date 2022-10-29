@@ -38,13 +38,15 @@ async def handle_generation_response(
         await asyncio.sleep(0.1)
     
     if ctx is None:
-        msg = await interaction.followup.send(f"{interaction.user.mention} Starting generation...")
+        progress_message = await interaction.followup.send(f"{interaction.user.mention} Starting generation...")
     else:
-        msg = await ctx.send(f"{ctx.author.mention} Starting generation...")
+        progress_message = await ctx.send(f"{ctx.author.mention} Starting generation...")
 
     # update progress from progress_queue updates while generating
     done = False
+    error = False
     progress = 0
+    progress_content = None
     
     while not done:
         while not progress_queue.empty():
@@ -61,21 +63,35 @@ async def handle_generation_response(
         else:
             content=f"{ctx.author.mention} Generating...\n\n{progress_bar_string} {progress}%"
 
-        await msg.edit(
-            embed=request_embed,
-            content=content,
-        )
-        await asyncio.sleep(1)
+        try:
+            if progress_content != content:
+                progress_content = content
 
-    await msg.edit(content=f"Generation complete!")
+                await progress_message.edit(
+                    embed=request_embed,
+                    content=progress_content,
+                )
+
+            await asyncio.sleep(1)
+        except (discord.errors.NotFound, discord.errors.HTTPException) as e:
+            print("\n\nMessage editing failed with an error:")
+            print(e)
+            print("\n\n")
+            error = True
+            break
+        
+    if not error:
+        await progress_message.edit(content=f"Generation complete!")
 
     # wait for done event
     while not done_event.is_set():
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
 
+    # get the response
     response: DiffusionResponse = response_queue.get(block=True)
     response_id = response.request.id
 
+    # make sure the response is for the current request
     if current_id != response_id:
         err = f"Internal error: ID mismatch. Got a response for ({response.request.id}) when processing ({request.id})."
         print(err)
