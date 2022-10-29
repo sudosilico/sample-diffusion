@@ -23,17 +23,17 @@ class DiffusionInference(nn.Module):
 
 
 class Model:
-    _module: DiffusionInference = None
-    _device_type: str = None
-    device: torch.device = None
-    model_path: str = None
-    chunk_size: int = 65536
-    sample_rate: int = 48000
-
     def __init__(
         self,
         force_cpu: bool = False,
     ):
+        self._module: DiffusionInference = None
+        self._device_type: str = None
+        self.device: torch.device = None
+        self.model_path: str = None
+        self.chunk_size: int = 65536
+        self.sample_rate: int = 48000
+
         if force_cpu:
             self._device_type = "cpu"
         else:

@@ -2,12 +2,13 @@ import json
 import os
 import discord
 
+
 class ModelsMetadata:
     def __init__(self, models_path: str):
         if not os.path.exists(models_path):
             os.makedirs(models_path)
 
-        meta_path = os.path.join(models_path, "meta.json")
+        meta_path = os.path.join(models_path, "models.json")
         meta_json = None
 
         # get ckpt files from models path
@@ -19,16 +20,14 @@ class ModelsMetadata:
 
         # load metadata from json file
         if not os.path.exists(meta_path):
-            meta_json = {
-                "models": []
-            }
+            meta_json = {"models": []}
         else:
             with open(meta_path, "r") as f:
                 meta_json = json.load(f)
         pass
 
         # ensure each checkpoint file has a metadata entry
-        for ckpt in models_path:
+        for ckpt in ckpt_paths:
             has_meta = False
 
             for model in meta_json["models"]:
@@ -37,13 +36,15 @@ class ModelsMetadata:
                     break
 
             if not has_meta:
-                meta_json["models"].append({
-                    "path": ckpt,
-                    "name": ckpt,
-                    "sample_rate": 48000,
-                    "chunk_size": 65536,
-                    "description": "",
-                })
+                meta_json["models"].append(
+                    {
+                        "name": os.path.splitext(ckpt)[0],
+                        "description": "",
+                        "path": ckpt,
+                        "sample_rate": 48000,
+                        "chunk_size": 65536,
+                    }
+                )
 
         # save updated metadata to json file
         with open(meta_path, "w") as f:
