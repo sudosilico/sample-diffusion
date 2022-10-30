@@ -1,25 +1,25 @@
-import os, argparse
-import torchaudio
+import argparse
 import torch
-import json
 import time
 import math
 
-from diffusion.util import set_seed
-from diffusion.inference import Inference
-from diffusion.schedule import CrashSchedule
-from dance_diffusion.model import DanceDiffusionModel
-from diffusion.sampler import ImprovedPseudoLinearMultiStep
-
 from sample_diffusion.platform import get_torch_device_type
 from dsp.post_process import post_process_audio
+from dance_diffusion.model import DanceDiffusionModel
+from diffusion_api.inference import Inference
+from diffusion_api.util import set_seed
+from diffusion_api.schedule import CrashSchedule
+from diffusion_api.sampler import ImprovedPseudoLinearMultiStep
+from sample_diffusion.util import load_audio, save_audio
+
 
 
 def main():
-    
     args = parse_cli_args()
     
-    device = torch.device(get_torch_device_type())
+    device_type = get_torch_device_type()
+    print("Using device:", device_type)
+    device = torch.device(device_type)
     
     model = DanceDiffusionModel(device)
     model.load(args.ckpt, args.spc, args.sr)
@@ -51,22 +51,20 @@ def main():
 
 
 def perform_batch(inference: Inference, seed: int, args):
-    
     seed = set_seed(seed)
     
     if args.input is None:
-        
         return inference.generate_unconditional(
             args.samples,
             args.steps
         ), seed
 
     if len(args.input) == 1:
-        
         audio_input = load_audio(inference.device, args.input[0], args.sr)
         
         audio_input_size = audio_input.size(dim=1)
         min_length_multiplier = math.ceil(audio_input_size / args.spc)
+
         if (args.length_multiplier == -1):
             audio_input = torch.nn.functional.pad(audio_input, (0, args.spc * max([min_length_multiplier, args.length_multiplier]) - audio_input_size), "constant", 0)
         else:
@@ -86,6 +84,7 @@ def perform_batch(inference: Inference, seed: int, args):
     audio_target_size = audio_target.size(dim=1)
     
     min_length_multiplier = math.ceil(max([audio_source_size, audio_target_size]) / args.spc)
+    
     if (args.length_multiplier == -1):
         audio_source = torch.nn.functional.pad(audio_source, (0, args.spc * max([min_length_multiplier, args.length_multiplier]) - audio_source_size), "constant", 0)
         audio_target = torch.nn.functional.pad(audio_target, (0, args.spc * max([min_length_multiplier, args.length_multiplier]) - audio_target_size), "constant", 0)
@@ -100,84 +99,6 @@ def perform_batch(inference: Inference, seed: int, args):
         audio_target,
         args.noise_level
     ), seed
-
-
-def load_audio(device, audio_path: str, sample_rate):
-    
-    if not os.path.exists(audio_path):
-        raise RuntimeError(f"Audio file not found: {audio_path}")
-
-    audio, file_sample_rate = torchaudio.load(audio_path)
-
-    if file_sample_rate != sample_rate:
-        resample = torchaudio.transforms.Resample(file_sample_rate, sample_rate)
-        audio = resample(audio)
-
-    return audio.to(device)
-
-
-def save_audio(audio_out, args, seed, batch):
-    output_path = get_output_folder(args, seed, batch)
-
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-
-    write_metadata(args, seed, batch, os.path.join(output_path, "meta.json"))
-    
-    for ix, sample in enumerate(audio_out):
-        output_file = os.path.join(output_path, f"sample_{ix + 1}.wav")
-        open(output_file, "a").close()
-        
-        output = sample.cpu()
-
-        torchaudio.save(output_file, output, args.sr)
-
-    if args.batches > 1:
-        print(f"Finished batch {batch + 1} of {args.batches}.")
-
-    # open the request_path folder in a cross-platform way
-    if args.open:
-        if os.name == "nt":
-            os.startfile(output_path)
-        elif os.name == "posix":
-            os.system(f"open {output_path}")
-    else:
-        print(f"\nYour samples are waiting for you here: {output_path}")
-
-
-def write_metadata(args, seed, batch, path):
-    metadata = {
-        "args": vars(args),
-        "seed": seed,
-        "batch": batch
-    }
-
-    write_to_json(metadata, path)
-
-
-def write_to_json(obj, path):
-    with open(path, "w") as f:
-        obj_json = json.dumps(obj, indent=2)
-        f.write(obj_json)
-
-
-def get_output_folder(args, seed, batch):
-    if args.input is None:
-        return os.path.join(
-           args.out_path, f"generations", f"{seed}_{args.steps}"
-        )
-    
-    if len(args.input) == 1:
-        return os.path.join(
-            args.out_path, f"variations", f"{seed}_{args.steps}_{args.noise_level}"
-        )
-
-    file_1 = os.path.splitext(os.path.basename(args.input[0]))[0]
-    file_2 = os.path.splitext(os.path.basename(args.input[1]))[0]
-
-    return os.path.join(
-        args.out_path, f"interpolations", f"{seed}_{file_1}_to_{file_2}"
-    )
 
 
 def parse_cli_args():

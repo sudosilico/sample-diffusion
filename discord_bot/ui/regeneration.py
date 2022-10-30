@@ -114,7 +114,6 @@ class RegenerationUIView(GenerationViewBase):
             request=request,
             response_queue=self.response_queue,
             interaction=self.interaction,
-            parent_view=self,
             request_embed=self.get_embed(),
         )
 

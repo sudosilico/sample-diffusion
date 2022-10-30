@@ -1,6 +1,6 @@
-name: dd
+name: dd2
 channels:
-  - pytorch-nightly
+  - pytorch
   - conda-forge
 dependencies: 
   - git

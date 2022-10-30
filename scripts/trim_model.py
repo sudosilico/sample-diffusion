@@ -55,8 +55,10 @@ def trim_model(untrimmed):
     temp = trimmed["state_dict"].copy()
 
     trimmed_model = dict()
+
     for k in temp:
         trimmed_model[k] = temp[k].half()
+        
     trimmed["state_dict"] = trimmed_model
 
     return trimmed

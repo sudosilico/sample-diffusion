@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable, Tuple
 
 from dance_diffusion.model import ModelBase
-from diffusion.util import t_to_alpha_sigma
+from diffusion_api.util import t_to_alpha_sigma
 
 
 @dataclass
@@ -55,7 +55,7 @@ class ImprovedPseudoLinearMultiStep(SamplerBase):
         self.model = model
         super().__init__(model.v_function)
 
-    def step(self, x_t: torch.Tensor, eps_cache: torch.Tensor, tas_now: TAS, tas_next: TAS, callback: Callable) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def step(self, x_t: torch.Tensor, eps_cache: torch.Tensor, tas_now: TAS, tas_next: TAS, callback: Callable, step: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         
         v_t = self.model_func(x_t, tas_now.t)
         eps_t = x_t * tas_now.sigma + v_t * tas_now.alpha
@@ -73,7 +73,8 @@ class ImprovedPseudoLinearMultiStep(SamplerBase):
         x_next = pred_mt * tas_next.alpha + eps_mt * tas_next.sigma
         
         if callback is not None:
-            callback({'x': x_t, 't': tas_now.t, 'pred': (x_t - eps_t * tas_now.sigma) / tas_now.alpha})
+            pred = (x_t - eps_t * tas_now.sigma) / tas_now.alpha
+            callback({'x': x_t, 't': tas_now.t, 'pred': pred, 'i': step})
 
         return x_next, eps_t
 
@@ -86,13 +87,14 @@ class ImprovedPseudoLinearMultiStep(SamplerBase):
         alphas, sigmas = t_to_alpha_sigma(ts)
         
         for step in trange(steps - 1):
-            
+           
             x_t, eps_t = self.step(
                 x_t, 
                 eps_cache, 
                 TAS(ts[step].expand(batch_size), alphas[step], sigmas[step]), 
                 TAS(ts[step + 1].expand(batch_size), alphas[step + 1], sigmas[step + 1]), 
-                callback
+                callback,
+                step
             )
             
             if len(eps_cache) >= 3:

@@ -9,7 +9,6 @@ dependencies:
   - cudatoolkit=11.3
   - pytorch=1.12.1
   - torchvision
-  - numpy
   - torchaudio
   - setuptools
   - flask
