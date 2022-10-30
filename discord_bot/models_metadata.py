@@ -24,7 +24,6 @@ class ModelsMetadata:
         else:
             with open(meta_path, "r") as f:
                 meta_json = json.load(f)
-        pass
 
         # ensure each checkpoint file has a metadata entry
         for ckpt in ckpt_paths:
@@ -57,6 +56,8 @@ class ModelsMetadata:
         for model in self.meta_json["models"]:
             if model["path"] == ckpt:
                 return model
+
+        return None
 
     def get_ckpt_paths(self, ctx: discord.commands.context.AutocompleteContext):
         return self.ckpt_paths
