@@ -5,7 +5,7 @@ import torchaudio
 from discord_bot.config import BotConfig
 from discord_bot.request import DiffusionRequest
 from discord_bot.response import DiffusionResponse
-from sample_diffusion.model import Model
+from dance_diffusion.model import DanceDiffusionModel
 
 
 def diffusion_process(
@@ -14,7 +14,7 @@ def diffusion_process(
     args, 
     config: BotConfig
 ):
-    model = Model()
+    model = DanceDiffusionModel() #@ sudo, might wanna add a 'device'
 
     while True:
         request: DiffusionRequest = request_queue.get(block=True)

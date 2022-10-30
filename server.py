@@ -1,6 +1,6 @@
 import os, argparse
 import torchaudio
-from sample_diffusion.model import load_model
+from dance_diffusion.model import load_model
 from sample_diffusion.inference import generate_audio
 from sample_diffusion.server import SocketIOServer
 
