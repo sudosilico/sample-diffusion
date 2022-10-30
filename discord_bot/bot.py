@@ -5,7 +5,7 @@ import torchaudio
 from discord_bot.commands import create_bot_with_commands
 from discord_bot.config import BotConfig
 from discord_bot.diffusion import diffusion_process
-from sample_diffusion.model import Model
+#from dance_diffusion.model import Model
 
 
 class Bot:

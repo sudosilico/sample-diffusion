@@ -1,25 +1,37 @@
 import os, argparse
 import torchaudio
+import torch
 import json
 import time
-from sample_diffusion.model import Model
-from sample_diffusion.post_process import post_process_audio
+import math
+
+from diffusion.util import set_seed
+from diffusion.inference import Inference
+from diffusion.schedule import CrashSchedule
+from dance_diffusion.model import DanceDiffusionModel
+from diffusion.sampler import ImprovedPseudoLinearMultiStep
+
+from sample_diffusion.platform import get_torch_device_type
+from dsp.post_process import post_process_audio
 
 
 def main():
+    
     args = parse_cli_args()
-
-    model = Model(force_cpu=args.force_cpu)
-    model.load(
-        model_path=args.ckpt,
-        chunk_size=args.spc,
-        sample_rate=args.sr,
-    )
-
+    
+    device = torch.device(get_torch_device_type())
+    
+    model = DanceDiffusionModel(device)
+    model.load(args.ckpt, args.spc, args.sr)
+    
+    scheduler = CrashSchedule(device)
+    sampler = ImprovedPseudoLinearMultiStep(model)
+    inference = Inference(device, model, sampler, scheduler)
+    
     start_time = time.process_time()
 
     for batch in range(args.batches):
-        audio_out, seed = perform_batch(model, args.seed + batch, args)
+        audio_out, seed = perform_batch(inference, args.seed + batch, args)
 
         audio_out = post_process_audio(
             audio_out, 
@@ -38,32 +50,70 @@ def main():
     )
 
 
-def perform_batch(model: Model, seed, args):
+def perform_batch(inference: Inference, seed: int, args):
+    
+    seed = set_seed(seed)
+    
     if args.input is None:
-        return model.process_unconditional(
-            seed=seed,
-            samples=args.samples,
-            steps=args.steps,
-        )
+        
+        return inference.generate_unconditional(
+            args.samples,
+            args.steps
+        ), seed
 
     if len(args.input) == 1:
-        return model.process_variation(
-            audio_path=args.input[0],
-            noise_level=args.noise_level,
-            length_multiplier=args.length_multiplier,
-            seed=seed,
-            samples=args.samples,
-            steps=args.steps,
-        )
         
-    return model.process_interpolation(
-        audio_path_source=args.input[0],
-        audio_path_target=args.input[1],
-        length_multiplier=args.length_multiplier,
-        seed=seed,
-        samples=args.samples,
-        steps=args.steps
-    )
+        audio_input = load_audio(inference.device, args.input[0], args.sr)
+        
+        audio_input_size = audio_input.size(dim=1)
+        min_length_multiplier = math.ceil(audio_input_size / args.spc)
+        if (args.length_multiplier == -1):
+            audio_input = torch.nn.functional.pad(audio_input, (0, args.spc * max([min_length_multiplier, args.length_multiplier]) - audio_input_size), "constant", 0)
+        else:
+            audio_input = audio_input[:,:args.spc * args.length_multiplier]
+        
+        return inference.generate_variation(
+            args.samples,
+            args.steps,
+            audio_input,
+            args.noise_level
+        ), seed
+    
+    audio_source = load_audio(inference.device, args.input[0], args.sr)
+    audio_target = load_audio(inference.device, args.input[1], args.sr)
+    
+    audio_source_size = audio_source.size(dim=1)
+    audio_target_size = audio_target.size(dim=1)
+    
+    min_length_multiplier = math.ceil(max([audio_source_size, audio_target_size]) / args.spc)
+    if (args.length_multiplier == -1):
+        audio_source = torch.nn.functional.pad(audio_source, (0, args.spc * max([min_length_multiplier, args.length_multiplier]) - audio_source_size), "constant", 0)
+        audio_target = torch.nn.functional.pad(audio_target, (0, args.spc * max([min_length_multiplier, args.length_multiplier]) - audio_target_size), "constant", 0)
+    else:
+        audio_source = audio_source[:,:args.spc * args.length_multiplier]
+        audio_target = audio_target[:,:args.spc * args.length_multiplier]
+    
+    return inference.generate_interpolation(
+        args.samples,
+        args.steps,
+        audio_source,
+        audio_target,
+        args.noise_level
+    ), seed
+
+
+def load_audio(device, audio_path: str, sample_rate):
+    
+    if not os.path.exists(audio_path):
+        raise RuntimeError(f"Audio file not found: {audio_path}")
+
+    audio, file_sample_rate = torchaudio.load(audio_path)
+
+    if file_sample_rate != sample_rate:
+        resample = torchaudio.transforms.Resample(file_sample_rate, sample_rate)
+        audio = resample(audio)
+
+    return audio.to(device)
 
 
 def save_audio(audio_out, args, seed, batch):
