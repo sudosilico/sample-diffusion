@@ -1,4 +1,4 @@
-name: dd2
+name: dd
 channels:
   - pytorch
   - conda-forge
