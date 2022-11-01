@@ -35,8 +35,6 @@ class DanceDiffusionInference(nn.Module):
         super().__init__()
 
         self.diffusion_ema = DiffusionAttnUnet1D(GlobalArgs(**kwargs), n_attn_layers=4)
-        self.rng = torch.quasirandom.SobolEngine(1, scramble=True)
-
 
 class DanceDiffusionModel(ModelBase):
     def __init__(

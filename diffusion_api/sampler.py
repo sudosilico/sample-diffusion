@@ -1,3 +1,4 @@
+import math
 import torch
 from tqdm.auto import trange
 from dataclasses import dataclass
@@ -10,8 +11,9 @@ from diffusion_api.util import t_to_alpha_sigma
 @dataclass
 class TAS:
     """
-    Combine timestep, alpha and sigma values.
+    Combine step, timestep, alpha and sigma values.
     """
+    step: int
     t: torch.Tensor
     alpha: torch.Tensor
     sigma: torch.Tensor
@@ -45,8 +47,85 @@ class SamplerBase:
 
     def _sample(self, x_t: torch.Tensor, ts: torch.Tensor, callback: Callable) -> torch.Tensor:
         raise NotImplementedError()
+    
+    def inpaint(self, audio_input: torch.Tensor, mask: torch.Tensor, ts: torch.Tensor, resamples: int, callback: Callable = None) -> torch.Tensor:
+        return self._inpaint(audio_input, mask, ts, resamples, callback)
+    
+    def _inpaint(self, audio_input: torch.Tensor, mask: torch.Tensor, ts: torch.Tensor, resamples: int, callback: Callable = None) -> torch.Tensor:
+        raise NotImplementedError()
 
 
+class DenoisingDiffusionProbabilisticModel(SamplerBase):
+    
+    def __init__(self, model: ModelBase):
+        
+        self.model = model
+        super().__init__(model.v_function)
+    
+    def step(self, x_t: torch.Tensor, tas_now: TAS, tas_next: TAS, callback: Callable) -> torch.Tensor:
+        
+        v_t = self.model_func(x_t, tas_now.t)
+        
+        eps_t = x_t * tas_now.sigma + v_t * tas_now.alpha
+        pred_t = x_t * tas_now.alpha - v_t * tas_now.sigma
+        
+        if callback is not None:
+            callback({'i': tas_now.step, 'x': x_t, 't': tas_now.t, 'pred': pred_t, 'eps': eps_t})
+            
+        return (pred_t * tas_next.alpha + eps_t * tas_next.sigma)
+        
+    
+    def _sample(self, x_t: torch.Tensor, ts: torch.Tensor, callback: Callable) -> torch.Tensor:
+        
+        print("Using DDPM Sampler.")
+        
+        steps = ts.size(0)
+        batch_size = x_t.size(0)
+        alphas, sigmas = t_to_alpha_sigma(ts)
+        
+        for step in trange(steps - 1):
+            x_t = self.step(
+                x_t, 
+                TAS(step, ts[step].expand(batch_size), alphas[step], sigmas[step]), 
+                TAS(step, ts[step + 1].expand(batch_size), alphas[step + 1], sigmas[step + 1]), 
+                callback
+            )
+            
+        return x_t
+            
+    def _inpaint(self, audio_input: torch.Tensor, mask: torch.Tensor, ts: torch.Tensor, resamples: int, callback: Callable = None) -> torch.Tensor:
+        
+        steps = ts.size(0)
+        batch_size = audio_input.size(0)
+        alphas, sigmas = t_to_alpha_sigma(ts)
+
+        x_t = audio_input
+        
+        for step in trange(steps - 1):
+            
+            audio_input_noised = audio_input * alphas[step] + torch.randn_like(audio_input) * sigmas[step]
+            sigma_dt = math.sqrt(sigmas[step] ** 2 - sigmas[step + 1] ** 2)
+            
+            for re in range(resamples):
+                
+                x_t = audio_input_noised * mask + x_t * ~mask
+                
+                v_t = self.model_func(x_t, ts[step].expand(batch_size))
+        
+                eps_t = x_t * sigmas[step] + v_t * alphas[step]
+                pred_t = x_t * alphas[step] - v_t * sigmas[step]
+                
+                if callback is not None:
+                    callback({'i': step, 'x': x_t, 't': ts[step], 'pred': pred_t, 'eps': eps_t})
+                
+                if(re < resamples - 1):
+                    x_t = pred_t * alphas[step] + eps_t * sigmas[step + 1] + sigma_dt * torch.randn_like(x_t)
+                else:
+                    x_t = pred_t * alphas[step + 1] + eps_t * sigmas[step + 1]
+
+        return (audio_input * mask + x_t * ~mask)
+        
+    
 class ImprovedPseudoLinearMultiStep(SamplerBase):
     """
     Improved Pseudo Linear Multistep or "IPLMS" sampler.
@@ -55,7 +134,7 @@ class ImprovedPseudoLinearMultiStep(SamplerBase):
         self.model = model
         super().__init__(model.v_function)
 
-    def step(self, x_t: torch.Tensor, eps_cache: torch.Tensor, tas_now: TAS, tas_next: TAS, callback: Callable, step: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def step(self, x_t: torch.Tensor, eps_cache: torch.Tensor, tas_now: TAS, tas_next: TAS, callback: Callable) -> Tuple[torch.Tensor, torch.Tensor]:
         
         v_t = self.model_func(x_t, tas_now.t)
         eps_t = x_t * tas_now.sigma + v_t * tas_now.alpha
@@ -70,16 +149,17 @@ class ImprovedPseudoLinearMultiStep(SamplerBase):
             eps_mt = (55/24 * eps_t - 59/24 * eps_cache[-1] + 37/24 * eps_cache[-2] - 9/24 * eps_cache[-3])
 
         pred_mt = (x_t - eps_mt * tas_now.sigma) / tas_now.alpha #torch.where(tas_now.alpha == 0, sys.float_info.epsilon, tas_now.alpha) 'orig mps fix'
-        x_next = pred_mt * tas_next.alpha + eps_mt * tas_next.sigma
         
         if callback is not None:
             pred = (x_t - eps_t * tas_now.sigma) / tas_now.alpha
-            callback({'x': x_t, 't': tas_now.t, 'pred': pred, 'i': step})
-
-        return x_next, eps_t
+            callback({'x': x_t, 't': tas_now.t, 'pred': pred, 'i': tas_now.step})
+        
+        return (pred_mt * tas_next.alpha + eps_mt * tas_next.sigma), eps_t
 
     def _sample(self, x_t: torch.Tensor, ts: torch.Tensor, callback: Callable) -> torch.Tensor:
 
+        print("Using IPLMS Sampler.")
+        
         steps = ts.size(0) #timesteps
         batch_size = x_t.size(0)
         
@@ -91,10 +171,9 @@ class ImprovedPseudoLinearMultiStep(SamplerBase):
             x_t, eps_t = self.step(
                 x_t, 
                 eps_cache, 
-                TAS(ts[step].expand(batch_size), alphas[step], sigmas[step]), 
-                TAS(ts[step + 1].expand(batch_size), alphas[step + 1], sigmas[step + 1]), 
-                callback,
-                step
+                TAS(step, ts[step].expand(batch_size), alphas[step], sigmas[step]), 
+                TAS(step, ts[step + 1].expand(batch_size), alphas[step + 1], sigmas[step + 1]), 
+                callback
             )
             
             if len(eps_cache) >= 3:

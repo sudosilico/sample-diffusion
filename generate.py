@@ -9,7 +9,7 @@ from dance_diffusion.model import DanceDiffusionModel
 from diffusion_api.inference import Inference
 from diffusion_api.util import set_seed
 from diffusion_api.schedule import CrashSchedule
-from diffusion_api.sampler import ImprovedPseudoLinearMultiStep
+from diffusion_api.sampler import DenoisingDiffusionProbabilisticModel, ImprovedPseudoLinearMultiStep
 from sample_diffusion.util import load_audio, save_audio
 
 
@@ -25,7 +25,7 @@ def main():
     model.load(args.ckpt, args.spc, args.sr)
     
     scheduler = CrashSchedule(device)
-    sampler = ImprovedPseudoLinearMultiStep(model)
+    sampler = DenoisingDiffusionProbabilisticModel(model)
     inference = Inference(device, model, sampler, scheduler)
     
     start_time = time.process_time()
