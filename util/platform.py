@@ -1,5 +1,6 @@
 import torch
 
+
 def get_torch_device_type():
     if is_mps_available():
         return "mps"
@@ -8,6 +9,7 @@ def get_torch_device_type():
         return "cuda"
 
     return "cpu"
+
 
 def is_mps_available():
     try:

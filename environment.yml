@@ -1,24 +1,19 @@
 name: dd
 channels:
   - pytorch
+  - nvidia
   - defaults
 dependencies: 
   - git
   - python=3.10
   - pip=22.2.2
-  - cudatoolkit=11.3
   - pytorch=1.12.1
+  - pytorch-cuda=11.7
   - torchvision
   - torchaudio
   - setuptools
-  - flask
   - pip:
     - -e .
-    - pytorch-lightning==1.4.2
-    - torchmetrics==0.6.0
     - PySoundFile
-    - flask-socketio
-    - py-cord
-    - python-dotenv
     - black
-    - git+https://github.com/harmonai-org/sample-generator.git@5e2257ba285408e08b5b9e77fa9cd7791b9e223b#egg=sample-generator
+    - diffusers
