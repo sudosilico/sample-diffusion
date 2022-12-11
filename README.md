@@ -2,15 +2,12 @@
 
 🚧 This project is early in development. Expect breaking changes! 🚧
 
-This repository contains the python project that runs machine learning tasks for the [Sample Diffusion web application](https://github.com/sudosilico/sample-diffusion-app). It is used to generate audio samples using Harmonai [Dance Diffusion](https://github.com/Harmonai-org/sample-generator) models.
+This repository contains the python project that runs inference tasks for the [Sample Diffusion web application](https://github.com/sudosilico/sample-diffusion-app). It is used to generate audio samples using Harmonai [Dance Diffusion](https://github.com/Harmonai-org/sample-generator) models.
 
 ## Features
 
-- A CLI for generating audio samples from the command line using Dance Diffusion models. (`generate.py`)
+- A CLI for generating audio samples from the command line using Dance Diffusion models. (`cli.py`)
 - A script for reducing the file size of Dance Diffusion models by removing data that is only needed for training and not inference. (`scripts/trim_model.py`)
-- A discord bot for generating samples in Discord servers. (`start_discord_bot.py`)
-    - [View the guide](https://github.com/sudosilico/sample-diffusion/blob/main/docs/discord.md)
-- (Planned) A socket.io server that can be used as a Dance Diffusion service by applications written in any programming language that has a socket.io client. (`server.py`)
 
 ## Installation
 
@@ -50,28 +47,25 @@ This may take a few minutes as it will install all the necessary Python dependen
 conda activate dd
 ```
 
-## Using the `generate.py` CLI
+## Using the `cli.py` CLI
 
 ### Generating samples
 
-Make a `models` folder and place your model in `models/model.ckpt`, then run the generator:
+Make a `models` folder and place your model in `models/dd/model.ckpt`, then run the generator:
 
 ```sh
-python generate.py
+python cli.py
 ```
 
-Alternatively, you can pass a custom model path as an argument:
+Alternatively, you can pass a custom model path as an argument instead of using the `models/dd/model.ckpt` default path:
 
 ```sh
-python generate.py --ckpt models/some-other-model.ckpt
+python cli.py --ckpt models/some-other-model.ckpt
 ```
 
 Your audio samples will then be in one of the following folders:
 
-- `audio_out/generations/{seed}_{steps}` for generations (generate_unconditional)
-- `audio_out/variations/{seed}_{steps}_{noise_level}` for variations (generate_variation)
-
-along with a `meta.json` file containing the arguments, seed, and batch number.
+- `audio/Output/DD/{mode}/{seed}_{steps}`
 
 ### Using multiple batches
 
@@ -81,33 +75,38 @@ Both of these commands will generate 25 audio samples in total, but the second o
 
 ```sh
 # Generate 25 files, in 1 batch of 25 samples
-python generate.py --samples 25
-
-# Generate 25 files, in 5 batches of 5 samples
-python generate.py --samples 5 --batches 5
+python cli.py --batch_size 25
 ```
 
-When generating multiple batches, the first batch will use the passed seed (or a random seed if none was passed), and each subsequent batch will increment the seed by one.
+### `cli.py` Command Line Arguments
 
-### `generate.py` Command Line Arguments
+| argument                  | type             | default                | desc                                                                                   |
+|---------------------------|------------------|------------------------|----------------------------------------------------------------------------------------|
+| `--use_autocast`          | bool             | True                   | Use autocast.                                                                          |
+| `--use_autocrop`          | bool             | True                   | Use autocrop (automatically crops audio provided to chunk_size).                       |
+| `--device_accelerator`    | str              | None                   | Device of execution.                                                                   |
+| `--device_offload`        | str              | `cpu`                  | Device to store models when not in use.                                                |
+| `--model`                 | str              | `models/dd/model.ckpt` | Path to the model checkpoint file to be used (default: models/dd/model.ckpt).          |
+| `--sample_rate`           | int              | 48000                  | The samplerate the model was trained on.                                               |
+| `--chunk_size`            | int              | 65536                  | The native chunk size of the model.                                                    |
+| `--mode`                  | RequestType      | `Generation`           | The mode of operation (Generation, Variation, Interpolation, Inpainting or Extension). |
+| `--seed`                  | int              | -1 (Random)            | The seed used for reproducable outputs. Leave empty for random seed.                   |
+| `--batch_size`            | int              | 1                      | The maximal number of samples to be produced per batch.                                |
+| `--audio_source`          | str              | None                   | Path to the audio source.                                                              |
+| `--audio_target`          | str              | None                   | Path to the audio target (used for interpolations).                                    |
+| `--mask`                  | str              | None                   | Path to the mask tensor (used for inpainting).                                         |
+| `--noise_level`           | float            | 0.7                    | The noise level used for variations & interpolations.                                  |
+| `--interpolations_linear` | int              | 1                      | The number of interpolations, even spacing.                                            |
+| `--interpolations`        | float or float[] | None                   | The interpolation positions.                                                           |
+| `--resamples`             | int              | 4                      | Number of resampling steps in conventional samplers for inpainting.                    |
+| `--keep_start`            | bool             | True                   | Keep beginning of audio provided(only applies to mode Extension).                      |
+| `--tame`                  | bool             | True                   | Decrease output by 3db, then clip.                                                     |
+| `--steps`                 | int              | 50                     | The number of steps for the sampler.                                                   |
+| `--sampler`               | SamplerType      | `IPLMS`                | The sampler used for the diffusion model.                                              |
+| `--sampler_args`          | Json String      | `{'use_tqdm': True}`   | Additional arguments of the DD sampler.                                                |
+| `--schedule`              | SchedulerType    | `CrashSchedule`        | The schedule used for the diffusion model.                                             |
+| `--schedule_args`         | Json String      | `{}`                   | Additional arguments of the DD schedule.                                               |
 
-| argument                   | type  | default             | desc                                               |
-|----------------------------|-------|---------------------|----------------------------------------------------|
-| --ckpt                     | str   | "models/model.ckpt" | path to the model to be used                       |
-| --spc                      | int   | 65536               | the samples per chunk of the model                 |
-| --sr                       | int   | 48000               | the samplerate of the model                        |
-| --out_path                 | str   | "audio_out"         | path to the folder for the samples to be saved in  |
-| --length_multiplier        | int   | 1                   | sample length multiplier for generate_variation           |
-| --noise_level              | float | 0.7                 | noise level for generate_variation                        |
-| --steps                    | int   | 25                  | number of sampling steps                           |
-| --samples                  | int   | 1                   | how many samples to generate per batch             |
-| --batches                  | int   | 1                   | how many batches of samples to generate            |
-| --seed                     | int   | -1                  | the seed (for reproducible sampling), -1 will be random every time.  |
-| --input                    | str or str[]   | None                  | path to the audio to be used for generate_variation. if missing, generate_unconditional will be used. If multiple paths given, will perform interpolation.  |
-| --remove_dc_offset         | flag  | False               | When this flag is set, a high pass filter will be applied to the input audio to remove DC offset. |
-| --normalize                | flag  | False               | When this flag is set, output audio samples will be normalized. |
-| --force_cpu                | flag  | False               | When this flag is set, processing will be done on the CPU. |
-| --open                    | flag  | False                | When this flag is set, the containing folder will be opened once your samples are saved. |
 
 ## Using the model trimming script
 

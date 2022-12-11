@@ -8,14 +8,11 @@ dependencies:
   - python=3.10.5
   - setuptools
   - pytorch
-  - torchaudio
   - torchvision
+  - torchaudio
   - pip:
     - -e .
-    - flask-socketio
-    - py-cord
-    - python-dotenv
     - black
-    - git+https://github.com/harmonai-org/sample-generator.git@5e2257ba285408e08b5b9e77fa9cd7791b9e223b#egg=sample_generator
+    - diffusers
 variables:
   PYTORCH_ENABLE_MPS_FALLBACK: 1
