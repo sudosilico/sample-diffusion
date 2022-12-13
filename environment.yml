@@ -17,3 +17,6 @@ dependencies:
     - PySoundFile
     - black
     - diffusers
+variables:
+  TRANSFORMERS_OFFLINE: 1
+  HF_DATASETS_OFFLINE: 1

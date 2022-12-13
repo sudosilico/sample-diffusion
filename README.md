@@ -60,7 +60,7 @@ python cli.py
 Alternatively, you can pass a custom model path as an argument instead of using the `models/dd/model.ckpt` default path:
 
 ```sh
-python cli.py --ckpt models/some-other-model.ckpt
+python cli.py --model models/some-other-model.ckpt
 ```
 
 Your audio samples will then be in one of the following folders:

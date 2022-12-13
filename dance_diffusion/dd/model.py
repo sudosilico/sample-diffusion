@@ -47,7 +47,7 @@ class DDModelWrapper(ModelWrapperBase):
         )
         
         self.module.load_state_dict(
-            torch.load(path)["state_dict"], 
+            torch.load(path, map_location='cpu')["state_dict"], 
             strict=False
         )
         self.module.eval().requires_grad_(False)
