@@ -62,7 +62,7 @@ class LogSchedule(SchedulerBase):
             max_log_snr if max_log_snr!=None else 10,
         )
         
-    def get_log_schedule(t, min_log_snr=-10, max_log_snr=10):
+    def get_log_schedule(self, t, min_log_snr=-10, max_log_snr=10):
         log_snr = t * (min_log_snr - max_log_snr) + max_log_snr
         alpha = log_snr.sigmoid().sqrt()
         sigma = log_snr.neg().sigmoid().sqrt()
