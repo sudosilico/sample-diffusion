@@ -13,7 +13,7 @@ def main():
     device_accelerator = torch.device(device_type_accelerator)
     device_offload = torch.device(args.device_offload)
     
-    autocrop = cropper(args.chunk_size, True) if(args.use_autocrop==True) else lambda audio: audio
+    autocrop = cropper(args.chunk_size, args.crop_randomly) if(args.use_autocrop==True) else lambda audio: audio
     
     request_handler = RequestHandler(device_accelerator, device_offload, optimize_memory_use=False, use_autocast=args.use_autocast)
     
@@ -72,6 +72,12 @@ def parse_cli_args():
         type=str2bool,
         default=True,
         help="Use autocrop(automatically crops audio provided to chunk_size)."
+    )
+    parser.add_argument(
+        "--crop_randomly",
+        type=str2bool,
+        default=False,
+        help="Whether autocrop should crop randomly."
     )
     parser.add_argument(
         "--device_accelerator",
