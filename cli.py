@@ -2,7 +2,7 @@ import json
 import torch
 import argparse
 
-from util.util import load_audio, save_audio, cropper
+from util.util import load_audio, save_audio, crop_audio
 from util.platform import get_torch_device_type
 from dance_diffusion.api import RequestHandler, Request, Response, RequestType, SamplerType, SchedulerType, ModelType
 
@@ -13,7 +13,8 @@ def main():
     device_accelerator = torch.device(device_type_accelerator)
     device_offload = torch.device(args.device_offload)
     
-    autocrop = cropper(args.chunk_size, args.crop_randomly) if(args.use_autocrop==True) else lambda audio: audio
+    crop = lambda audio: crop_audio(audio, args.chunk_size, args.crop_offset) if args.crop_offset is not None else audio
+    load_input = lambda source: crop(load_audio(device_accelerator, source, args.sample_rate)) if source is not None else None
     
     request_handler = RequestHandler(device_accelerator, device_offload, optimize_memory_use=False, use_autocast=args.use_autocast)
     
@@ -30,8 +31,9 @@ def main():
         seed=seed,
         batch_size=args.batch_size,
         
-        audio_source=autocrop(load_audio(device_accelerator,args.audio_source, args.sample_rate)) if(args.audio_source != None) else None,
-        audio_target=autocrop(load_audio(device_accelerator,args.audio_target, args.sample_rate)) if(args.audio_target != None) else None,
+        audio_source=load_input(args.audio_source),
+        audio_target=load_input(args.audio_target),
+        
         mask=torch.load(args.mask) if(args.mask != None) else None,
         
         noise_level=args.noise_level,
@@ -68,16 +70,10 @@ def parse_cli_args():
         help="Use autocast."
     )
     parser.add_argument(
-        "--use_autocrop",
-        type=str2bool,
-        default=True,
-        help="Use autocrop(automatically crops audio provided to chunk_size)."
-    )
-    parser.add_argument(
-        "--crop_randomly",
-        type=str2bool,
-        default=False,
-        help="Whether autocrop should crop randomly."
+        "--crop_offset",
+        type=int,
+        default=0,
+        help="The starting sample offset to crop input audio to. Use -1 for random cropping."
     )
     parser.add_argument(
         "--device_accelerator",
