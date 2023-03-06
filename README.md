@@ -83,8 +83,7 @@ python cli.py --batch_size 25
 | argument                  | type             | default                | desc                                                                                   |
 |---------------------------|------------------|------------------------|----------------------------------------------------------------------------------------|
 | `--use_autocast`          | bool             | True                   | Use autocast.                                                                          |
-| `--use_autocrop`          | bool             | True                   | Use autocrop (automatically crops audio provided to chunk_size).                       |
-| `--crop_randomly`         | bool             | False                  | Whether autocrop should crop randomly.                                                 |
+| `--crop_offset`           | int              | 0                      | The starting sample offset to crop input audio to. Use -1 for random cropping.         |
 | `--device_accelerator`    | str              | None                   | Device of execution.                                                                   |
 | `--device_offload`        | str              | `cpu`                  | Device to store models when not in use.                                                |
 | `--model`                 | str              | `models/dd/model.ckpt` | Path to the model checkpoint file to be used (default: models/dd/model.ckpt).          |

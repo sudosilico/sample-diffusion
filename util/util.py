@@ -45,20 +45,16 @@ def save_audio(audio_out, output_path: str, sample_rate, id_str:str = None):
         torchaudio.save(output_file, output, sample_rate)
 
 
-def cropper(samples: int, randomize: bool = True):
-
-    def crop(source: torch.Tensor, offset_in: int = None) -> torch.Tensor:
-        n_channels, n_samples = source.shape
-        
-        offset = 0
-        if (offset_in):
-            offset = min(offset_in, n_samples - samples)
-        elif (randomize):
-            offset = torch.randint(0, max(0, n_samples - samples) + 1, []).item()
-        
-        chunk = source.new_zeros([n_channels, samples])
-        chunk [:, :min(n_samples, samples)] = source[:, offset:offset + samples]
-        
-        return chunk
-
-    return crop
+def crop_audio(source: torch.Tensor, chunk_size: int, crop_offset: int = 0) -> torch.Tensor:
+    n_channels, n_samples = source.shape
+    
+    offset = 0
+    if (crop_offset > 0):
+        offset = min(crop_offset, n_samples - chunk_size)
+    elif (crop_offset == -1):
+        offset = torch.randint(0, max(0, n_samples - chunk_size) + 1, []).item()
+    
+    chunk = source.new_zeros([n_channels, chunk_size])
+    chunk [:, :min(n_samples, chunk_size)] = source[:, offset:offset + chunk_size]
+    
+    return chunk
