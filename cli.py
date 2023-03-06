@@ -6,6 +6,7 @@ from util.util import load_audio, save_audio, cropper
 from util.platform import get_torch_device_type
 from dance_diffusion.api import RequestHandler, Request, Response, RequestType, SamplerType, SchedulerType, ModelType
 
+
 def main():
     args = parse_cli_args()
     
@@ -51,6 +52,7 @@ def main():
     response = request_handler.process_request(request)#, lambda **kwargs: print(f"{kwargs['step'] / kwargs['x']}"))
     save_audio((0.5 * response.result).clamp(-1,1) if(args.tame == True) else response.result, f"audio/Output/{ModelType.DD.__str__()}/{args.mode.__str__()}/", args.sample_rate, f"{seed}")
 
+
 def str2bool(value):
     if value.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
@@ -58,6 +60,7 @@ def str2bool(value):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 def parse_cli_args():
     parser = argparse.ArgumentParser()
@@ -216,6 +219,7 @@ def parse_cli_args():
         help="Additional arguments of the DD schedule."
     )
     return parser.parse_args()
+
 
 if __name__ == '__main__':
     main()

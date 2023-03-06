@@ -12,6 +12,9 @@ from .dd.inference import DDInference
 from diffusion_library.sampler import SamplerBase, DDPM, DDIM, IPLMS
 from diffusion_library.scheduler import SchedulerBase, LinearSchedule, DDPMSchedule, SplicedDDPMCosineSchedule, LogSchedule, CrashSchedule
 
+
+class ModelType(str, enum.Enum):
+    DD = "DD"
     
 class RequestType(str, enum.Enum):
     Generation = "Generation"
@@ -25,20 +28,12 @@ class SamplerType(str, enum.Enum):
     DDIM = "DDIM"
     IPLMS = "IPLMS"
 
-class ModelType(str, enum.Enum):
-    DD = "DD"
-
 class SchedulerType(str, enum.Enum):
     LinearSchedule = "LinearSchedule"
     DDPMSchedule = "DDPMSchedule"
     SplicedDDPMCosineSchedule = "SplicedDDPMCosineSchedule"
     LogSchedule = "LogSchedule"
     CrashSchedule = "CrashSchedule"
-
-
-class SchedulerArgs:
-    def __init__(self, **kwargs):
-        pass
 
 
 class Request:
@@ -97,27 +92,22 @@ class RequestHandler:
                 request.model_chunk_size,
                 request.model_sample_rate
             )
+            
+        handlers_by_request_type = {
+            RequestType.Generation: self.handle_generation,
+            RequestType.Variation: self.handle_variation,
+            RequestType.Interpolation: self.handle_interpolation,
+            RequestType.Inpainting: self.handle_inpainting,
+            RequestType.Extension: self.handle_extension,
+        }
         
-        match request.request_type:
-            case RequestType.Generation:
-                tensor_result = self.handle_generation(request, callback)
-                    
-            case RequestType.Variation:
-                tensor_result = self.handle_variation(request, callback)
-            
-            case RequestType.Interpolation:
-                tensor_result = self.handle_interpolation(request, callback)
-            
-            case RequestType.Inpainting:
-                tensor_result = self.handle_inpainting(request, callback)
-
-            case RequestType.Extension:
-                tensor_result =  self.handle_extension(request, callback)
-            
-            case _:
-                raise ValueError("Unexpected RequestType in process_request")
-
-        return Response(tensor_result)
+        handler = handlers_by_request_type.get(request.request_type)
+        
+        if handler:
+            return Response(handler(request, callback))
+        
+        raise ValueError(f"Unexpected RequestType in process_request: '{request.request_type}'")
+    
 
     def load_model(self, model_type, model_path, chunk_size, sample_rate):
         match model_type:
@@ -206,32 +196,28 @@ class RequestHandler:
             case _:
                 raise ValueError("Unexpected ModelType in handle_extension")
             
-
     def create_scheduler(self, scheduler_type: SchedulerType) -> SchedulerBase:
-        match scheduler_type:
-            case SchedulerType.LinearSchedule:
-                return LinearSchedule(self.device_accelerator)
+        schedulers_by_type = {
+            SchedulerType.LinearSchedule: LinearSchedule,
+            SchedulerType.DDPMSchedule: DDPMSchedule,
+            SchedulerType.SplicedDDPMCosineSchedule: SplicedDDPMCosineSchedule,
+            SchedulerType.LogSchedule: LogSchedule,
+            SchedulerType.CrashSchedule: CrashSchedule,
+        }
+        
+        Scheduler = schedulers_by_type.get(scheduler_type)
+        
+        if Scheduler:
+            return Scheduler(self.device_accelerator)
             
-            case SchedulerType.DDPMSchedule:
-                return DDPMSchedule(self.device_accelerator)
-            
-            case SchedulerType.SplicedDDPMCosineSchedule:
-                return SplicedDDPMCosineSchedule(self.device_accelerator)
-            
-            case SchedulerType.LogSchedule:
-                return LogSchedule(self.device_accelerator)
-            
-            case SchedulerType.CrashSchedule:
-                return CrashSchedule(self.device_accelerator)
-            
-
     def create_sampler(self, sampler_type: SamplerType) -> SamplerBase:
-        match sampler_type:
-            case SamplerType.DDPM:
-                return DDPM()
-            
-            case SamplerType.DDIM:
-                return DDIM()
-            
-            case SamplerType.IPLMS:
-                return IPLMS()
+        samplers_by_type = {
+            SamplerType.DDPM: DDPM,
+            SamplerType.DDIM: DDIM,
+            SamplerType.IPLMS: IPLMS,
+        }
+        
+        Sampler = samplers_by_type.get(sampler_type)
+        
+        if Sampler:
+            return Sampler()
