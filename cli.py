@@ -111,7 +111,7 @@ def parse_cli_args():
     )
     parser.add_argument(
         "--mode",
-        type=RequestType.argtype,
+        type=RequestType,
         choices=RequestType,
         default=RequestType.Generation,
         help="The mode of operation (Generation, Variation, Interpolation, Inpainting or Extension)."
@@ -191,7 +191,7 @@ def parse_cli_args():
     )
     parser.add_argument(
         "--sampler",
-        type=SamplerType.argtype,
+        type=SamplerType,
         choices=SamplerType,
         default=SamplerType.IPLMS,
         help="The sampler used for the diffusion model."
@@ -204,7 +204,7 @@ def parse_cli_args():
     )
     parser.add_argument(
         "--schedule",
-        type=SchedulerType.argtype,
+        type=SchedulerType,
         choices=SchedulerType,
         default=SchedulerType.CrashSchedule,
         help="The schedule used for the diffusion model."

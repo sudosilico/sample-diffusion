@@ -12,43 +12,28 @@ from .dd.inference import DDInference
 from diffusion_library.sampler import SamplerBase, DDPM, DDIM, IPLMS
 from diffusion_library.scheduler import SchedulerBase, LinearSchedule, DDPMSchedule, SplicedDDPMCosineSchedule, LogSchedule, CrashSchedule
 
-
-class ArgparseEnum(enum.Enum):
     
-    @classmethod
-    def argtype(cls, s:str) -> enum.Enum:
-        try:
-            return cls[s]
-        except KeyError:
-            raise KeyError(f"{s} is not a valid {cls.__name__}")
-    
-    def __str__(self):
-        return self.name
-    
-class RequestType(ArgparseEnum, enum.Enum):
-    Generation = 1
-    Variation = 2
-    Interpolation = 3
-    Inpainting = 4
-    Extension = 5
+class RequestType(str, enum.Enum):
+    Generation = "Generation"
+    Variation = "Variation"
+    Interpolation = "Interpolation"
+    Inpainting = "Inpainting"
+    Extension = "Extension"
 
+class SamplerType(str, enum.Enum):
+    DDPM = "DDPM"
+    DDIM = "DDIM"
+    IPLMS = "IPLMS"
 
+class ModelType(str, enum.Enum):
+    DD = "DD"
 
-class SamplerType(ArgparseEnum, enum.Enum):
-    DDPM = 1
-    DDIM = 2
-    IPLMS = 3
-
-
-class ModelType(ArgparseEnum, enum.Enum):
-    DD = 1
-
-class SchedulerType(ArgparseEnum, enum.Enum):
-    LinearSchedule = 1
-    DDPMSchedule = 2
-    SplicedDDPMCosineSchedule = 3
-    LogSchedule = 4
-    CrashSchedule = 5
+class SchedulerType(str, enum.Enum):
+    LinearSchedule = "LinearSchedule"
+    DDPMSchedule = "DDPMSchedule"
+    SplicedDDPMCosineSchedule = "SplicedDDPMCosineSchedule"
+    LogSchedule = "LogSchedule"
+    CrashSchedule = "CrashSchedule"
 
 
 class SchedulerArgs:
