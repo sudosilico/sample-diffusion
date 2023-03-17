@@ -19,7 +19,8 @@ class InferenceBase():
         self.optimize_memory_use = optimize_memory_use
         self.use_autocast = use_autocast
         self.model = model
-        self.generator = torch.Generator(device_accelerator if (device_accelerator.type != 'mps') else torch.device('cpu'))
+        # self.generator = torch.Generator(device_accelerator if (device_accelerator.type != 'mps') else torch.device('cpu'))
+        self.generator = torch.Generator(device_accelerator)
 
         
     def set_device_accelerator(
