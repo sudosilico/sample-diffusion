@@ -1,8 +1,8 @@
 # sample-diffusion
 
-🚧 This project is early in development. Expect breaking changes! 🚧
+A Python library and CLI for generating audio samples using Harmonai Dance Diffusion models.
 
-This repository contains the python project that runs inference tasks for the [Sample Diffusion web application](https://github.com/sudosilico/sample-diffusion-app). It is used to generate audio samples using Harmonai [Dance Diffusion](https://github.com/Harmonai-org/sample-generator) models.
+🚧 This project is early in development. Expect breaking changes! 🚧
 
 ## Features
 
