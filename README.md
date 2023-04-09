@@ -1,6 +1,6 @@
 # sample-diffusion
 
-A Python library and CLI for generating audio samples using Harmonai Dance Diffusion models.
+A Python library and CLI for generating audio samples using Harmonai [Dance Diffusion](https://github.com/Harmonai-org/sample-generator) models.
 
 🚧 This project is early in development. Expect breaking changes! 🚧
 
