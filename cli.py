@@ -1,59 +1,70 @@
-import json
-import torch
-import argparse
+import json, torch, argparse, os, logging
 
-from util.util import load_audio, save_audio, crop_audio
+from util.util import load_audio, save_audio, cropper
 from util.platform import get_torch_device_type
-from dance_diffusion.api import RequestHandler, Request, Response, RequestType, SamplerType, SchedulerType, ModelType
-
+from dance_diffusion.api import RequestHandler, Request, Response, RequestType, ModelType
+from diffusion_library.sampler import VKSamplerType
+from diffusion_library.scheduler import VKSchedulerType
+from transformers import logging as transformers_logging
 
 def main():
     args = parse_cli_args()
     
-    device_type_accelerator = args.device_accelerator if(args.device_accelerator != None) else get_torch_device_type()
+    device_type_accelerator = args.get('device_accelerator') if(args.get('device_accelerator') != None) else get_torch_device_type()
     device_accelerator = torch.device(device_type_accelerator)
-    device_offload = torch.device(args.device_offload)
+    device_offload = torch.device(args.get('device_offload'))
     
-    crop = lambda audio: crop_audio(audio, args.chunk_size, args.crop_offset) if args.crop_offset is not None else audio
-    load_input = lambda source: crop(load_audio(device_accelerator, source, args.sample_rate)) if source is not None else None
+    autocrop = cropper(args.get('chunk_size'), True) if(args.get('use_autocrop') == True) else lambda audio: audio
     
-    request_handler = RequestHandler(device_accelerator, device_offload, optimize_memory_use=False, use_autocast=args.use_autocast)
+    request_handler = RequestHandler(device_accelerator, device_offload, optimize_memory_use=args.get('optimize_memory_use'), use_autocast=args.get('use_autocast'))
     
-    seed = args.seed if(args.seed!=-1) else torch.randint(0, 4294967294, [1], device=device_type_accelerator).item()
+    seed = args.get('seed') if(args.get('seed') != -1) else torch.randint(0, 4294967294, [1], device=device_type_accelerator).item()
     print(f"Using accelerator: {device_type_accelerator}, Seed: {seed}.")
     
     request = Request(
-        request_type=args.mode,
-        model_path=args.model,
-        model_type=ModelType.DD,
-        model_chunk_size=args.chunk_size,
-        model_sample_rate=args.sample_rate,
+        request_type=args.get('mode'),
+        model_path=args.get('model'),
+        model_type=args.get('model_type'),
+        model_chunk_size=args.get('chunk_size'),
+        model_sample_rate=args.get('sample_rate'),
         
         seed=seed,
-        batch_size=args.batch_size,
+        batch_size=args.get('batch_size'),
         
-        audio_source=load_input(args.audio_source),
-        audio_target=load_input(args.audio_target),
+        audio_source=autocrop(
+            load_audio(
+                device_accelerator,
+                args.get('audio_source'),
+                args.get('sample_rate')
+            )
+        )if(args.get('audio_source') != None) else None, # FIX FOR INTERPOLATIONS
+        audio_target=autocrop(
+            load_audio(
+                device_accelerator,
+                args.get('audio_target'),
+                args.get('sample_rate')
+            )
+        )if(args.get('audio_target') != None) else None,
+        mask=torch.load(args.get('mask')) if(args.get('mask') != None) else None,
         
-        mask=torch.load(args.mask) if(args.mask != None) else None,
-        
-        noise_level=args.noise_level,
-        interpolation_positions=args.interpolations if(args.interpolations_linear == None) else torch.linspace(0, 1, args.interpolations_linear, device=device_accelerator),
-        resamples=args.resamples,
-        keep_start=args.keep_start,
+        noise_level=args.get('noise_level'),
+        interpolation_positions=args.get('interpolations') if(args.get('interpolations_linear') == None) else torch.linspace(0, 1, args.get('interpolations_linear'), device=device_accelerator),
+        clip_latents=args.get('clip_latents'),
+        keep_start=args.get('keep_start'),
                 
-        steps=args.steps,
+        steps=args.get('steps'),
         
-        sampler_type=args.sampler,
-        sampler_args=args.sampler_args,
+        sampler_type=args.get('sampler'),
+        sampler_args=args.get('sampler_args'),
         
-        scheduler_type=args.schedule,
-        scheduler_args=args.schedule_args
+        scheduler_type=args.get('schedule'),
+        scheduler_args=args.get('schedule_args'),
+        
+        inpainting_args=args.get('inpainting_args')
     )
     
-    response = request_handler.process_request(request)#, lambda **kwargs: print(f"{kwargs['step'] / kwargs['x']}"))
-    save_audio((0.5 * response.result).clamp(-1,1) if(args.tame == True) else response.result, f"audio/Output/{ModelType.DD.__str__()}/{args.mode.__str__()}/", args.sample_rate, f"{seed}")
-
+    response = request_handler.process_request(request)
+    save_audio((0.5 * response.result).clamp(-1,1) if(args.get('tame') == True) else response.result, f"audio/Output/{args.get('model_type')}/{args.get('mode')}/", args.get('sample_rate'), f"{seed}")
 
 def str2bool(value):
     if value.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -63,9 +74,20 @@ def str2bool(value):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-
 def parse_cli_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--argsfile",
+        type=str,
+        default=None,
+        help="When used, uses args from a provided .json file instead of using the passed cli args."
+    )
+    parser.add_argument(
+        "--optimize_memory_use",
+        type=str2bool,
+        default=True,
+        help="Try to minimize memory use during execution, might decrease performance."
+    )
     parser.add_argument(
         "--use_autocast",
         type=str2bool,
@@ -73,10 +95,16 @@ def parse_cli_args():
         help="Use autocast."
     )
     parser.add_argument(
-        "--crop_offset",
-        type=int,
-        default=0,
-        help="The starting sample offset to crop input audio to. Use -1 for random cropping."
+        "--use_autocrop",
+        type=str2bool,
+        default=True,
+        help="Use autocrop(automatically crops audio provided to chunk_size)."
+    )
+    parser.add_argument(
+        "--clip_latents",
+        type=str2bool,
+        default=True,
+        help="Clips latents to be between -1 and 1. Can improve quality."
     )
     parser.add_argument(
         "--device_accelerator",
@@ -97,6 +125,13 @@ def parse_cli_args():
         help="Path to the model checkpoint file to be used (default: models/dd/model.ckpt)."
     )
     parser.add_argument(
+        "--model_type",
+        type=ModelType,
+        choices=ModelType,
+        default=ModelType.DD,
+        help="The model type."
+    )
+    parser.add_argument(
         "--sample_rate",
         type=int,
         default=48000,
@@ -113,7 +148,7 @@ def parse_cli_args():
         type=RequestType,
         choices=RequestType,
         default=RequestType.Generation,
-        help="The mode of operation (Generation, Variation, Interpolation, Inpainting or Extension)."
+        help="The mode of operation (Generation, Variation, Interpolation, Inpainting, Extension or Upscaling)."
     )
     parser.add_argument(
         "--seed",
@@ -154,7 +189,7 @@ def parse_cli_args():
     parser.add_argument(
         "--interpolations_linear",
         type=int,
-        default=None,
+        default=1,
         help="The number of interpolations, even spacing."
     )
     parser.add_argument(
@@ -163,12 +198,6 @@ def parse_cli_args():
         type=float,
         default=None,
         help="The interpolation positions."
-    )
-    parser.add_argument(
-        "--resamples",
-        type=int,
-        default=4,
-        help="Number of resampling steps in conventional samplers for inpainting."
     )
     parser.add_argument(
         "--keep_start",
@@ -190,22 +219,22 @@ def parse_cli_args():
     )
     parser.add_argument(
         "--sampler",
-        type=SamplerType,
-        choices=SamplerType,
-        default=SamplerType.IPLMS,
+        type=VKSamplerType,
+        choices=VKSamplerType,
+        default=VKSamplerType.V_IPLMS,
         help="The sampler used for the diffusion model."
     )
     parser.add_argument(
         "--sampler_args",
         type=json.loads,
-        default={'use_tqdm': True},
+        default={},
         help="Additional arguments of the DD sampler."
     )
     parser.add_argument(
         "--schedule",
-        type=SchedulerType,
-        choices=SchedulerType,
-        default=SchedulerType.CrashSchedule,
+        type=VKSchedulerType,
+        choices=VKSchedulerType,
+        default=VKSchedulerType.V_CRASH,
         help="The schedule used for the diffusion model."
     )
     parser.add_argument(
@@ -214,8 +243,31 @@ def parse_cli_args():
         default={},
         help="Additional arguments of the DD schedule."
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--inpaint_args",
+        type=json.loads,
+        default={},
+        help="Arguments for inpainting."
+    )
+    
+    args = parser.parse_args()
+    
+    if args.argsfile is not None:
+        if os.path.exists(args.argsfile):
+            with open(args.argsfile, "r") as f:
+                print(f"Using cli args from file: {args.argsfile}")
+                args = json.load(f)
+                
+                # parse enum objects from strings & apply defaults
+                args['sampler'] = VKSamplerType(args.get('sampler', VKSamplerType.V_IPLMS))
+                args['schedule'] = VKSchedulerType(args.get('schedule', VKSchedulerType.V_CRASH))
 
+                return args
+        else:
+            print(f"Could not locate argsfile: {args.argsfile}")
+    
+    return vars(args)
 
 if __name__ == '__main__':
+    transformers_logging.set_verbosity_error()
     main()

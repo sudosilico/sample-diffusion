@@ -12,6 +12,8 @@ dependencies:
   - torchaudio
   - pip:
     - -e .
+    - v-diffusion-pytorch
+    - k-diffusion
     - black
     - diffusers
 variables:

@@ -1,81 +1,78 @@
 import math
+import enum
 import torch
 
-class SchedulerBase():
-    def __init__(self, device):
-        self.device = device
+from diffusion import utils as vscheduling
+from k_diffusion import sampling as kscheduling
+
+
+class VKSchedulerType(str, enum.Enum):
+    V_DDPM = 'V_DDPM'
+    V_SPLICED_DDPM_COSINE = 'V_SPLICED_DDPM_COSINE'
+    V_LOG = 'V_LOG'
+    V_CRASH = 'V_CRASH'
     
-    def create(self, steps: int, first: float = 1, last: float = 0, device: torch.device = None, scheduler_args = None) -> torch.Tensor:
-        raise NotImplementedError()
-
-
-class LinearSchedule(SchedulerBase):
-    def __init__(self, device:torch.device = None):
-        super().__init__(device)
+    K_KARRAS = 'K_KARRAS'
+    K_EXPONENTIAL = 'K_EXPONENTIAL'
+    K_POLYEXPONENTIAL = 'K_POLYEXPONENTIAL'
+    K_VP = 'K_VP'
     
-    def create(self, steps: int, first: float = 1, last: float = 0, device: torch.device = None, scheduler_args = None) -> torch.Tensor:
-        return torch.linspace(first, last, steps, device = device if (device != None) else self.device)
-
-
-class DDPMSchedule(SchedulerBase):
-    def __init__(self, device:torch.device = None):
-        super().__init__(device)
-
-    def create(self, steps: int, first: float = 1, last: float = 0, device: torch.device = None, scheduler_args = None) -> torch.Tensor:
-        ramp = torch.linspace(first, last, steps, device = device if (device != None) else self.device)
-        log_snr = -torch.special.expm1(1e-4 + 10 * ramp**2).log()
-        alpha = log_snr.sigmoid().sqrt()
-        sigma = log_snr.neg().sigmoid().sqrt()
-        return torch.atan2(sigma, alpha) / math.pi * 2
-
-
-class SplicedDDPMCosineSchedule(SchedulerBase):
-    def __init__(self, device:torch.device = None):
-        super().__init__(device)
-    
-    def create(self, steps: int, first: float = 1, last: float = 0, device: torch.device = None, scheduler_args = None) -> torch.Tensor:
-        ramp = torch.linspace(first, last, steps, device = device if (device != None) else self.device)
+    @classmethod
+    def is_v_scheduler(cls, value):
+        return value[0] == 'V'
         
-        ddpm_crossover = 0.48536712
-        cosine_crossover = 0.80074257
-        big_t = ramp * (1 + cosine_crossover - ddpm_crossover)
-        
-        log_snr = -torch.special.expm1(1e-4 + 10 * (big_t + ddpm_crossover - cosine_crossover)**2).log()
-        alpha = log_snr.sigmoid().sqrt()
-        sigma = log_snr.neg().sigmoid().sqrt()
-        ddpm_part = torch.atan2(sigma, alpha) / math.pi * 2
+    def get_step_list(self, n: int, device: str, **schedule_args):
+        #if VKSchedulerType.is_v_scheduler(self):
+        #    n -= 1
 
-        return torch.where(big_t < cosine_crossover, big_t, ddpm_part)
-
-
-class LogSchedule(SchedulerBase):
-    def __init__(self, device:torch.device = None):
-        super().__init__(device)
-        
-    def create(self, steps: int, first: float = 1, last: float = 0, device: torch.device = None, scheduler_args = {'min_log_snr': -10, 'max_log_snr': 10}) -> torch.Tensor:
-        ramp = torch.linspace(first, last, steps, device = device if (device != None) else self.device)
-        min_log_snr = scheduler_args.get('min_log_snr')
-        max_log_snr = scheduler_args.get('max_log_snr')
-        return self.get_log_schedule(
-            ramp,
-            min_log_snr if min_log_snr!=None else -10,
-            max_log_snr if max_log_snr!=None else 10,
-        )
-        
-    def get_log_schedule(self, t, min_log_snr=-10, max_log_snr=10):
-        log_snr = t * (min_log_snr - max_log_snr) + max_log_snr
-        alpha = log_snr.sigmoid().sqrt()
-        sigma = log_snr.neg().sigmoid().sqrt()
-        return torch.atan2(sigma, alpha) / math.pi * 2
-
-
-class CrashSchedule(SchedulerBase):
-    def __init__(self, device:torch.device = None):
-        super().__init__(device)
-    
-    def create(self, steps: int, first: float = 1, last: float = 0, device: torch.device = None, scheduler_args = None) -> torch.Tensor:
-        ramp = torch.linspace(first, last, steps, device = device if (device != None) else self.device)
-        sigma = torch.sin(ramp * math.pi / 2) ** 2
-        alpha = (1 - sigma**2) ** 0.5
-        return torch.atan2(sigma, alpha) / math.pi * 2
-    
+        if self == VKSchedulerType.V_DDPM:
+            return torch.nn.functional.pad(vscheduling.get_ddpm_schedule(torch.linspace(1, 0, n)), [0,1], value=0.0).to(device)
+        elif self == VKSchedulerType.V_SPLICED_DDPM_COSINE:
+            return vscheduling.get_spliced_ddpm_cosine_schedule(torch.linspace(1, 0, n + 1)).to(device)
+        elif self == VKSchedulerType.V_LOG:
+            return torch.nn.functional.pad(
+                vscheduling.get_log_schedule(
+                    torch.linspace(1, 0, n),
+                    schedule_args.get('min_log_snr', -10.0),
+                    schedule_args.get('max_log_snr', 10.0)
+                ),
+                [0,1],
+                value=0.0
+            ).to(device)
+        elif self == VKSchedulerType.V_CRASH:
+            sigma = torch.sin(torch.linspace(1, 0, n + 1) * math.pi / 2) ** 2
+            alpha = (1 - sigma ** 2) ** 0.5
+            return vscheduling.alpha_sigma_to_t(alpha, sigma).to(device)
+        elif self == VKSchedulerType.K_KARRAS:
+            return kscheduling.get_sigmas_karras(
+                n,
+                schedule_args.get('sigma_min', 0.001),
+                schedule_args.get('sigma_max', 1.0),
+                schedule_args.get('rho', 7.0),
+                device = device
+            )
+        elif self == VKSchedulerType.K_EXPONENTIAL:
+            return kscheduling.get_sigmas_exponential(
+                n,
+                schedule_args.get('sigma_min', 0.001),
+                schedule_args.get('sigma_max', 1.0),
+                device = device
+            )
+        elif self == VKSchedulerType.K_POLYEXPONENTIAL:
+            return kscheduling.get_sigmas_polyexponential(
+                n,
+                schedule_args.get('sigma_min', 0.001),
+                schedule_args.get('sigma_max', 1.0),
+                schedule_args.get('rho', 1.0),
+                device = device
+            )
+        elif self == VKSchedulerType.K_VP:
+            return kscheduling.get_sigmas_vp(
+                n,
+                schedule_args.get('beta_d', 1.205),
+                schedule_args.get('beta_min', 0.09),
+                schedule_args.get('eps_s', 0.001),
+                device = device
+            )
+        else:
+            raise Exception(f"No get_step_list implementation for scheduler_type '{self}'")
