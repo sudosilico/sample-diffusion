@@ -56,7 +56,7 @@ class DiffusionAttnUnet1D(nn.Module):
                 )
             else:
                 block = nn.Sequential(
-                    conv_block(io_channels + 16 + global_args.latent_dim, c, c),
+                    conv_block(io_channels + 16 + global_args.get('latent_dim'), c, c),
                     conv_block(c, c, c),
                     conv_block(c, c, c),
                     block,
