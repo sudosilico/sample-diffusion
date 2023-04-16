@@ -51,32 +51,21 @@ conda activate dd
 
 ### Generating samples
 
-Make a `models` folder and place your model in `models/dd/model.ckpt`, then run the generator:
+Make a `models` folder and place your model in `models/DD/model.ckpt`, then run the generator:
 
 ```sh
 python cli.py
 ```
 
-Alternatively, you can pass a custom model path as an argument instead of using the `models/dd/model.ckpt` default path:
+Alternatively, you can pass a custom model path as an argument instead of using the `models/DD/model.ckpt` default path:
 
 ```sh
-python cli.py --model models/some-other-model.ckpt
+python cli.py --model models/DD/some-other-model.ckpt
 ```
 
 Your audio samples will then be in one of the following folders:
 
 - `audio/Output/DD/{mode}/{seed}_{steps}`
-
-### Using multiple batches
-
-If you get an out-of-VRAM error, you may want to process in multiple batches.
-
-Both of these commands will generate 25 audio samples in total, but the second one is split into multiple batches, allowing for a lower maximum VRAM usage.
-
-```sh
-# Generate 25 files, in 1 batch of 25 samples
-python cli.py --batch_size 25
-```
 
 ### `cli.py` Command Line Arguments
 
@@ -98,15 +87,21 @@ python cli.py --batch_size 25
 | `--noise_level`           | float            | 0.7                    | The noise level used for variations & interpolations.                                  |
 | `--interpolations_linear` | int              | 1                      | The number of interpolations, even spacing.                                            |
 | `--interpolations`        | float or float[] | None                   | The interpolation positions.                                                           |
-| `--resamples`             | int              | 4                      | Number of resampling steps in conventional samplers for inpainting.                    |
 | `--keep_start`            | bool             | True                   | Keep beginning of audio provided(only applies to mode Extension).                      |
 | `--tame`                  | bool             | True                   | Decrease output by 3db, then clip.                                                     |
 | `--steps`                 | int              | 50                     | The number of steps for the sampler.                                                   |
 | `--sampler`               | SamplerType      | `IPLMS`                | The sampler used for the diffusion model.                                              |
-| `--sampler_args`          | Json String      | `{'use_tqdm': True}`   | Additional arguments of the DD sampler.                                                |
+| `--sampler_args`          | Json String      | `{}`                   | Additional arguments of the DD sampler.                                                |
 | `--schedule`              | SchedulerType    | `CrashSchedule`        | The schedule used for the diffusion model.                                             |
 | `--schedule_args`         | Json String      | `{}`                   | Additional arguments of the DD schedule.                                               |
+| `--inpainting_args`       | Json String      | `{}`                   | Additional arguments for inpainting (currently unsupported)                            |
 
+### Using args.json
+Instead of specifying all the necessary arguments each time we encourage you to try using the provided args.json file provided with this library. Using it looks as follows:
+```sh
+python cli.py --argsfile 'args.json'
+```
+To change any settings you can edit the args.json file.
 
 ## Using the model trimming script
 

@@ -49,7 +49,6 @@ def main():
         
         noise_level=args.get('noise_level'),
         interpolation_positions=args.get('interpolations') if(args.get('interpolations_linear') == None) else torch.linspace(0, 1, args.get('interpolations_linear'), device=device_accelerator),
-        clip_latents=args.get('clip_latents'),
         keep_start=args.get('keep_start'),
                 
         steps=args.get('steps'),
@@ -101,12 +100,6 @@ def parse_cli_args():
         help="Use autocrop(automatically crops audio provided to chunk_size)."
     )
     parser.add_argument(
-        "--clip_latents",
-        type=str2bool,
-        default=True,
-        help="Clips latents to be between -1 and 1. Can improve quality."
-    )
-    parser.add_argument(
         "--device_accelerator",
         type=str,
         default=None,
@@ -121,8 +114,8 @@ def parse_cli_args():
     parser.add_argument(
         "--model",
         type=str,
-        default="models/dd/model.ckpt",
-        help="Path to the model checkpoint file to be used (default: models/dd/model.ckpt)."
+        default="models/DD/model.ckpt",
+        help="Path to the model checkpoint file to be used (default: models/DD/model.ckpt)."
     )
     parser.add_argument(
         "--model_type",

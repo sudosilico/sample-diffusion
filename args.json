@@ -6,8 +6,8 @@
     
     "use_autocast": true,
     "use_autocrop": true,
-    "clip_latents": true,
     "crop_offset": 0,
+    "tame": true,
 
     "model_type": "DD",
     "model": "models/DD/model.ckpt",
@@ -27,11 +27,6 @@
 
     "interpolations_linear": 4,
 
-    "inpainting_args": {
-        "method": "posterior_guidance",
-        "posterior_guidance_scale": 12
-    },
-
     "keep_start": true,
 
     "steps": 25,
@@ -43,5 +38,10 @@
         "sigma_min": 0.1,
         "sigma_max": 50.0,
         "rho": 1.0
+    },
+    
+    "inpainting_args": {
+        "method": "posterior_guidance",
+        "posterior_guidance_scale": 12
     }
 }
