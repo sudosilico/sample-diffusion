@@ -3,7 +3,7 @@ from diffusion import sampling as vsampling
 from k_diffusion import sampling as ksampling
 
 
-class VKSamplerType(str, enum.Enum):
+class SamplerType(str, enum.Enum):
     V_DDPM = 'V_DDPM'
     V_DDIM = 'V_DDIM'
     V_PRK = 'V_PRK'
@@ -29,7 +29,7 @@ class VKSamplerType(str, enum.Enum):
         return value[0] == 'V'
 
     def sample(self, model_fn, x_t, steps, callback, **sampler_args) -> torch.Tensor:
-        if self == VKSamplerType.V_DDPM:
+        if self == SamplerType.V_DDPM:
             if sampler_args.get('is_reverse'):
                 return vsampling.reverse_sample(
                     model_fn,
@@ -48,7 +48,7 @@ class VKSamplerType(str, enum.Enum):
                     sampler_args.get('extra_args', {}),
                     callback
                 )
-        elif self == VKSamplerType.V_DDIM:
+        elif self == SamplerType.V_DDIM:
             if sampler_args.get('is_reverse'): # HACK: Technically incorrect since DDIM implies eta > 0.0
                 return vsampling.reverse_sample(
                     model_fn,
@@ -67,7 +67,7 @@ class VKSamplerType(str, enum.Enum):
                     sampler_args.get('extra_args', {}),
                     callback
                 )
-        elif self == VKSamplerType.V_PRK:
+        elif self == SamplerType.V_PRK:
             return vsampling.prk_sample(
                 model_fn,
                 x_t,
@@ -76,7 +76,7 @@ class VKSamplerType(str, enum.Enum):
                 True,
                 callback
             )
-        elif self == VKSamplerType.V_PIE:
+        elif self == SamplerType.V_PIE:
             return vsampling.pie_sample(
                 model_fn,
                 x_t,
@@ -85,7 +85,7 @@ class VKSamplerType(str, enum.Enum):
                 True,
                 callback
             )
-        elif self == VKSamplerType.V_PLMS:
+        elif self == SamplerType.V_PLMS:
             return vsampling.plms_sample(
                 model_fn,
                 x_t,
@@ -94,7 +94,7 @@ class VKSamplerType(str, enum.Enum):
                 True,
                 callback
             )
-        elif self == VKSamplerType.V_PLMS2:
+        elif self == SamplerType.V_PLMS2:
             return vsampling.plms2_sample(
                 model_fn,
                 x_t,
@@ -103,7 +103,7 @@ class VKSamplerType(str, enum.Enum):
                 True,
                 callback
             )
-        elif self == VKSamplerType.V_IPLMS:
+        elif self == SamplerType.V_IPLMS:
             return vsampling.iplms_sample(
                 model_fn,
                 x_t,
@@ -112,7 +112,7 @@ class VKSamplerType(str, enum.Enum):
                 True,
                 callback
             )
-        elif self == VKSamplerType.K_EULER:
+        elif self == SamplerType.K_EULER:
             return ksampling.sample_euler(
                 model_fn,
                 x_t,
@@ -125,7 +125,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('s_tmax',float('inf')),
                 sampler_args.get('s_noise', 1.0)
             )
-        elif self == VKSamplerType.K_EULERA:
+        elif self == SamplerType.K_EULERA:
             return ksampling.sample_euler_ancestral(
                 model_fn,
                 x_t,
@@ -137,7 +137,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('s_noise', 1.0),
                 sampler_args.get('noise_sampler', None)
             )
-        elif self == VKSamplerType.K_HEUN:
+        elif self == SamplerType.K_HEUN:
             return ksampling.sample_heun(
                 model_fn,
                 x_t,
@@ -150,7 +150,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('s_tmax',float('inf')),
                 sampler_args.get('s_noise', 1.0)
             )
-        elif self == VKSamplerType.K_DPM2:
+        elif self == SamplerType.K_DPM2:
             return ksampling.sample_dpm_2(
                 model_fn,
                 x_t,
@@ -163,7 +163,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('s_tmax',float('inf')),
                 sampler_args.get('s_noise', 1.0)
             )
-        elif self == VKSamplerType.K_DPM2A:
+        elif self == SamplerType.K_DPM2A:
             return ksampling.sample_dpm_2_ancestral(
                 model_fn,
                 x_t,
@@ -175,7 +175,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('s_noise', 1.0),
                 sampler_args.get('noise_sampler', None)
             )
-        elif self == VKSamplerType.K_LMS:
+        elif self == SamplerType.K_LMS:
             return ksampling.sample_lms(
                 model_fn,
                 x_t,
@@ -185,7 +185,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('disable', False),
                 sampler_args.get('order', 4)
             )
-        elif self == VKSamplerType.K_DPMF:# sample_dpm_fast
+        elif self == SamplerType.K_DPMF:# sample_dpm_fast
             return ksampling.sample_dpm_fast(
                 model_fn,
                 x_t,
@@ -199,7 +199,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('s_noise', 1.0),
                 sampler_args.get('noise_sampler', None)
             )
-        elif self == VKSamplerType.K_DPMA:
+        elif self == SamplerType.K_DPMA:
             return ksampling.sample_dpm_adaptive(
                 model_fn,
                 x_t,
@@ -221,7 +221,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('noise_sampler', None),
                 sampler_args.get('return_info', False)
             )
-        elif self == VKSamplerType.K_DPMPP2SA:
+        elif self == SamplerType.K_DPMPP2SA:
             return ksampling.sample_dpmpp_2s_ancestral(
                 model_fn,
                 x_t,
@@ -233,7 +233,7 @@ class VKSamplerType(str, enum.Enum):
                 sampler_args.get('s_noise', 1.0),
                 sampler_args.get('noise_sampler', None)
             )
-        elif self == VKSamplerType.K_DPMPP2M:
+        elif self == SamplerType.K_DPMPP2M:
             return ksampling.sample_dpmpp_2m(
                 model_fn,
                 x_t,
@@ -242,7 +242,7 @@ class VKSamplerType(str, enum.Enum):
                 callback,
                 sampler_args.get('disable', False)
             )
-        elif self == VKSamplerType.K_DPMPPSDE:
+        elif self == SamplerType.K_DPMPPSDE:
             return ksampling.sample_dpmpp_sde(
                 model_fn,
                 x_t,

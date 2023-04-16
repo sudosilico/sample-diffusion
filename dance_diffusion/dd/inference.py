@@ -6,8 +6,8 @@ from diffusion.utils import t_to_alpha_sigma
 from k_diffusion.external import VDenoiser
 
 from typing import Tuple, Callable
-from diffusion_library.scheduler import VKSchedulerType
-from diffusion_library.sampler import VKSamplerType
+from diffusion_library.scheduler import SchedulerType
+from diffusion_library.sampler import SamplerType
 from dance_diffusion.base.model import ModelWrapperBase
 from dance_diffusion.base.inference import InferenceBase
 
@@ -31,17 +31,17 @@ class DDInference(InferenceBase):
         batch_size: int = None,
         seed: int = None,
         steps: int = None,
-        scheduler: VKSchedulerType = None,
+        scheduler: SchedulerType = None,
         scheduler_args: dict = None,
-        sampler: VKSamplerType = None,
+        sampler: SamplerType = None,
         sampler_args: dict = None,
         **kwargs
     ):
         self.generator.manual_seed(seed)
         
-        step_list = scheduler.get_step_list(steps, self.device_accelerator.type, **scheduler_args)#step_list = step_list[:-1] if sampler in [VKSamplerType.V_PRK, VKSamplerType.V_PLMS, VKSamplerType.V_PIE, VKSamplerType.V_PLMS2, VKSamplerType.V_IPLMS] else step_list
+        step_list = scheduler.get_step_list(steps, self.device_accelerator.type, **scheduler_args)#step_list = step_list[:-1] if sampler in [SamplerType.V_PRK, SamplerType.V_PLMS, SamplerType.V_PIE, SamplerType.V_PLMS2, SamplerType.V_IPLMS] else step_list
         
-        if VKSamplerType.is_v_sampler(sampler):
+        if SamplerType.is_v_sampler(sampler):
             x_T = torch.randn([batch_size, 2, self.model.chunk_size], generator=self.generator, device=self.device_accelerator)
             model = self.model.model
         else:
@@ -67,9 +67,9 @@ class DDInference(InferenceBase):
         expansion_map: list[int] = None,
         noise_level: float = None,
         steps: int = None,
-        scheduler: VKSchedulerType = None,
+        scheduler: SchedulerType = None,
         scheduler_args = None,
-        sampler: VKSamplerType = None,
+        sampler: SamplerType = None,
         sampler_args = None,
         **kwargs
     ) -> torch.Tensor:
@@ -77,7 +77,7 @@ class DDInference(InferenceBase):
         
         audio_source = self.expand(audio_source, expansion_map)
         
-        if VKSamplerType.is_v_sampler(sampler):
+        if SamplerType.is_v_sampler(sampler):
             step_list = scheduler.get_step_list(steps, self.device_accelerator.type, **scheduler_args)
             step_list = step_list[step_list < noise_level]
             alpha_T, sigma_T = t_to_alpha_sigma(step_list[0])
@@ -110,14 +110,14 @@ class DDInference(InferenceBase):
         expansion_map: list[int] = None,
         noise_level: float = None,
         steps: int = None,
-        scheduler: VKSchedulerType = None,
+        scheduler: SchedulerType = None,
         scheduler_args = None,
-        sampler: VKSamplerType = None,
+        sampler: SamplerType = None,
         sampler_args = None,
         **kwargs
         ) -> torch.Tensor:
         
-        if VKSamplerType.is_v_sampler(sampler):
+        if SamplerType.is_v_sampler(sampler):
             step_list = scheduler.get_step_list(steps, self.device_accelerator.type, **scheduler_args)
             step_list = step_list[step_list < noise_level]
             step_list[-1] += 1e-7 #HACK avoid division by 0 in reverse sampling
@@ -163,7 +163,7 @@ class DDInference(InferenceBase):
                     **sampler_args
                 )
         
-        if VKSamplerType.is_v_sampler(sampler): #HACK reset schedule after hack
+        if SamplerType.is_v_sampler(sampler): #HACK reset schedule after hack
             step_list[-1] = 0.0
         else:
             step_list = torch.cat([step_list, step_list.new_zeros([1])])
@@ -192,9 +192,9 @@ class DDInference(InferenceBase):
         expansion_map: list[int] = None,
         mask: torch.Tensor = None,
         steps: int = None,
-        scheduler: VKSchedulerType = None,
+        scheduler: SchedulerType = None,
         scheduler_args = None,
-        sampler: VKSamplerType = None,
+        sampler: SamplerType = None,
         sampler_args = None,
         inpainting_args = None,
         **kwargs
@@ -210,7 +210,7 @@ class DDInference(InferenceBase):
         elif(method == 'posterior_guidance'):
             step_list = scheduler.get_step_list(steps, self.device_accelerator.type, **scheduler_args)
             
-            if VKSamplerType.is_v_sampler(sampler):
+            if SamplerType.is_v_sampler(sampler):
                 raise Exception('V-Sampler currently not supported for posterior guidance. Please choose a K-Sampler.')
             else:
                 x_T = audio_source + step_list[0] * torch.randn([batch_size, 2, self.model.chunk_size], generator=self.generator, device=self.device_accelerator)
@@ -240,9 +240,9 @@ class DDInference(InferenceBase):
         audio_source: torch.Tensor = None,
         expansion_map: list[int] = None,
         steps: int = None,
-        scheduler: VKSchedulerType = None,
+        scheduler: SchedulerType = None,
         scheduler_args = None,
-        sampler: VKSamplerType = None,
+        sampler: SamplerType = None,
         sampler_args = None,
         inpainting_args = None,
         keep_start: bool = None,

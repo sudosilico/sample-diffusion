@@ -3,8 +3,8 @@ import json, torch, argparse, os, logging
 from util.util import load_audio, save_audio, cropper
 from util.platform import get_torch_device_type
 from dance_diffusion.api import RequestHandler, Request, Response, RequestType, ModelType
-from diffusion_library.sampler import VKSamplerType
-from diffusion_library.scheduler import VKSchedulerType
+from diffusion_library.sampler import SamplerType
+from diffusion_library.scheduler import SchedulerType
 from transformers import logging as transformers_logging
 
 def main():
@@ -212,9 +212,9 @@ def parse_cli_args():
     )
     parser.add_argument(
         "--sampler",
-        type=VKSamplerType,
-        choices=VKSamplerType,
-        default=VKSamplerType.V_IPLMS,
+        type=SamplerType,
+        choices=SamplerType,
+        default=SamplerType.V_IPLMS,
         help="The sampler used for the diffusion model."
     )
     parser.add_argument(
@@ -225,9 +225,9 @@ def parse_cli_args():
     )
     parser.add_argument(
         "--schedule",
-        type=VKSchedulerType,
-        choices=VKSchedulerType,
-        default=VKSchedulerType.V_CRASH,
+        type=SchedulerType,
+        choices=SchedulerType,
+        default=SchedulerType.V_CRASH,
         help="The schedule used for the diffusion model."
     )
     parser.add_argument(
@@ -252,8 +252,8 @@ def parse_cli_args():
                 args = json.load(f)
                 
                 # parse enum objects from strings & apply defaults
-                args['sampler'] = VKSamplerType(args.get('sampler', VKSamplerType.V_IPLMS))
-                args['schedule'] = VKSchedulerType(args.get('schedule', VKSchedulerType.V_CRASH))
+                args['sampler'] = SamplerType(args.get('sampler', SamplerType.V_IPLMS))
+                args['schedule'] = SchedulerType(args.get('schedule', SchedulerType.V_CRASH))
 
                 return args
         else:
