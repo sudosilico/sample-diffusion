@@ -159,6 +159,7 @@ class RequestHandler:
     def handle_interpolation(self, request: Request, callback: Callable) -> torch.Tensor:
         kwargs = request.kwargs.copy()
         kwargs.update(
+            batch_size = len(kwargs['interpolation_positions']),
             audio_source = kwargs['audio_source'][None,:,:],
             audio_target = kwargs['audio_target'][None,:,:]
         )
