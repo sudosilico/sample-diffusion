@@ -23,7 +23,7 @@
     "audio_source": null,
     "audio_target": null,
 
-    "noise_level": 0.05,
+    "noise_level": 1.0,
 
     "interpolations_linear": 4,
 
@@ -35,7 +35,7 @@
     },
     "schedule": "K_POLYEXPONENTIAL",
     "schedule_args": {
-        "sigma_min": 0.1,
+        "sigma_min": 0.15,
         "sigma_max": 50.0,
         "rho": 1.0
     },

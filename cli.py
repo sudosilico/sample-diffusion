@@ -1,6 +1,6 @@
 import json, torch, argparse, os, logging
 
-from util.util import load_audio, save_audio, cropper
+from util.util import load_audio, save_audio, crop_audio
 from util.platform import get_torch_device_type
 from dance_diffusion.api import RequestHandler, Request, Response, RequestType, ModelType
 from diffusion_library.sampler import SamplerType
@@ -14,7 +14,8 @@ def main():
     device_accelerator = torch.device(device_type_accelerator)
     device_offload = torch.device(args.get('device_offload'))
     
-    autocrop = cropper(args.get('chunk_size'), True) if(args.get('use_autocrop') == True) else lambda audio: audio
+    crop = lambda audio: crop_audio(audio, args.get('chunk_size'), args.get('crop_offset')) if args.get('crop_offset') is not None else audio
+    load_input = lambda source: crop(load_audio(device_accelerator, source, args.get('sample_rate'))) if source is not None else None
     
     request_handler = RequestHandler(device_accelerator, device_offload, optimize_memory_use=args.get('optimize_memory_use'), use_autocast=args.get('use_autocast'))
     
@@ -31,20 +32,9 @@ def main():
         seed=seed,
         batch_size=args.get('batch_size'),
         
-        audio_source=autocrop(
-            load_audio(
-                device_accelerator,
-                args.get('audio_source'),
-                args.get('sample_rate')
-            )
-        )if(args.get('audio_source') != None) else None, # FIX FOR INTERPOLATIONS
-        audio_target=autocrop(
-            load_audio(
-                device_accelerator,
-                args.get('audio_target'),
-                args.get('sample_rate')
-            )
-        )if(args.get('audio_target') != None) else None,
+        audio_source=load_input(args.get("audio_source")),
+        audio_target=load_input(args.get("audio_target")),
+        
         mask=torch.load(args.get('mask')) if(args.get('mask') != None) else None,
         
         noise_level=args.get('noise_level'),
@@ -80,6 +70,12 @@ def parse_cli_args():
         type=str,
         default=None,
         help="When used, uses args from a provided .json file instead of using the passed cli args."
+    )
+    parser.add_argument(
+        "--crop_offset",
+        type=int,
+        default=0,
+        help="The starting sample offset to crop input audio to. Use -1 for random cropping."
     )
     parser.add_argument(
         "--optimize_memory_use",
@@ -254,7 +250,7 @@ def parse_cli_args():
                 # parse enum objects from strings & apply defaults
                 args['sampler'] = SamplerType(args.get('sampler', SamplerType.V_IPLMS))
                 args['schedule'] = SchedulerType(args.get('schedule', SchedulerType.V_CRASH))
-
+                
                 return args
         else:
             print(f"Could not locate argsfile: {args.argsfile}")

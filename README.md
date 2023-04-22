@@ -71,6 +71,7 @@ Your audio samples will then be in one of the following folders:
 
 | argument                  | type             | default                | desc                                                                                   |
 |---------------------------|------------------|------------------------|----------------------------------------------------------------------------------------|
+| `--argsfile`              | str              | None                   | Path to JSON file containing cli args. If used, other passed cli args are ignored.     |
 | `--use_autocast`          | bool             | True                   | Use autocast.                                                                          |
 | `--crop_offset`           | int              | 0                      | The starting sample offset to crop input audio to. Use -1 for random cropping.         |
 | `--device_accelerator`    | str              | None                   | Device of execution.                                                                   |
@@ -97,7 +98,7 @@ Your audio samples will then be in one of the following folders:
 | `--inpainting_args`       | Json String      | `{}`                   | Additional arguments for inpainting (currently unsupported)                            |
 
 ### Using args.json
-Instead of specifying all the necessary arguments each time we encourage you to try using the provided args.json file provided with this library. Using it looks as follows:
+Instead of specifying all the necessary arguments each time we encourage you to try using the args.json file provided with this library:
 ```sh
 python cli.py --argsfile 'args.json'
 ```
