@@ -6,7 +6,6 @@ from typing import Tuple
 
 from .model import ModelWrapperBase
 
-from audio_diffusion_pytorch import T5Embedder
 class InferenceBase():
     def __init__(
         self,
@@ -116,17 +115,11 @@ class InferenceBase():
 
         autocast = self.autocast_context() if self.use_autocast else nullcontext()
         
-        if(isinstance(model, T5Embedder) and self.device_accelerator.type == 'mps'):
-            model.to(torch.device('cpu'))
-            
+        with autocast:
+            if self.optimize_memory_use:
+                model.to(self.device_accelerator)
+
             yield None
-            
-        else:
-            with autocast:
-                if self.optimize_memory_use:
-                    model.to(self.device_accelerator)
 
-                yield None
-
-                if self.optimize_memory_use:
-                    model.to(self.device_offload)
+            if self.optimize_memory_use:
+                model.to(self.device_offload)
